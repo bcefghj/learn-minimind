@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L01 - 什么是大语言模型 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l01-">L01 - 什么是大语言模型</h1>
+<blockquote>
+<p><strong>"大道至简，从文字接龙说起"</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解语言模型的核心思想——"预测下一个词"</li>
+<li>知道什么是"大"语言模型，以及参数量意味着什么</li>
+<li>了解 GPT 系列的发展脉络和 MiniMind 的定位</li>
+<li>掌握 Next Token Prediction、Temperature、采样策略等基本概念</li>
+<li>理解 Decoder-Only 架构为何成为主流</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>会用电脑，知道什么是"文件""程序"</li>
+<li>对"人工智能""ChatGPT"有基本印象（哪怕只是听说过）</li>
+<li>不需要任何编程或数学基础</li>
+</ul>
+<hr />
+<h2 id="_3">正文讲解</h2>
+<h3 id="1">1. 什么是语言模型？——从文字接龙说起</h3>
+<p>还记得小时候玩的<strong>文字接龙</strong>游戏吗？</p>
+<blockquote>
+<p>"天" → "天空" → "天空很蓝" → "天空很蓝，白云飘飘"</p>
+</blockquote>
+<p>你的大脑在做一件事：<strong>根据已有的文字，猜下一个最合适的词</strong>。</p>
+<p><strong>语言模型（Language Model, LM）</strong> 做的事情和你一模一样！它是一个数学程序，输入一段文字，输出"下一个词最可能是什么"。</p>
+<p>举个例子：</p>
+<pre class="highlight"><code>输入: &quot;今天天气真&quot;
+语言模型的想法:
+  &quot;好&quot;  → 概率 60%
+  &quot;差&quot;  → 概率 15%
+  &quot;棒&quot;  → 概率 10%
+  &quot;热&quot;  → 概率 8%
+  其他   → 概率 7%
+</code></pre>
+
+<p>它不是"理解"了这句话，而是从海量文本中<strong>学到了统计规律</strong>：在"今天天气真"后面，"好"出现的频率最高。</p>
+<blockquote>
+<p><strong>类比</strong>：语言模型就像一个读了几亿本书的"文字接龙高手"。它不一定真正理解每句话的含义，但它知道什么词最可能出现在什么位置。</p>
+</blockquote>
+<h3 id="2">2. 什么是"大"语言模型？——参数量的概念</h3>
+<h4 id="21">2.1 参数是什么？</h4>
+<p>想象你在学骑自行车：</p>
+<ul>
+<li>你的大脑需要调整很多"设定"：身体的平衡角度、踏板的力度、转弯的幅度……</li>
+<li>每一个"设定"就像一个<strong>参数</strong></li>
+</ul>
+<p>语言模型也一样。它内部有大量的数字（参数），这些数字决定了它如何处理文字。<strong>参数越多，模型就越"聪明"，能记住和处理的知识就越多</strong>。</p>
+<h4 id="22">2.2 图书馆类比</h4>
+<p>把语言模型想象成一座<strong>图书馆</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>参数量</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>小型模型</td>
+<td>几百万 (M)</td>
+<td>一个书架 — 能回答简单问题</td>
+</tr>
+<tr>
+<td>MiniMind</td>
+<td>6400 万 (64M)</td>
+<td>一个小型阅览室 — 能进行基本对话</td>
+</tr>
+<tr>
+<td>GPT-2</td>
+<td>15 亿 (1.5B)</td>
+<td>一层楼的图书馆 — 能写像样的文章</td>
+</tr>
+<tr>
+<td>GPT-3</td>
+<td>1750 亿 (175B)</td>
+<td>整栋国家图书馆 — 几乎无所不知</td>
+</tr>
+<tr>
+<td>GPT-4</td>
+<td>据传 ~1.8 万亿 (1.8T)</td>
+<td>一座城市的所有图书馆 — 多模态超级智能</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>M = Million (百万)，B = Billion (十亿)，T = Trillion (万亿)</strong></p>
+</blockquote>
+<p>MiniMind 的 64M 参数是 GPT-3 (175B) 的 <strong>1/2700</strong>。这就好比用一个书架的知识去挑战整栋国家图书馆——虽然差距巨大，但正因为"小"，我们才能把它完全拆开学习！</p>
+<h3 id="3-gpt">3. GPT 系列的发展历史</h3>
+<p>GPT 是 <strong>Generative Pre-trained Transformer</strong> 的缩写，意思是"生成式预训练 Transformer"。</p>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>模型</th>
+<th>参数量</th>
+<th>里程碑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2018.06</td>
+<td>GPT-1</td>
+<td>1.17 亿</td>
+<td>证明了"预训练 + 微调"的路线可行</td>
+</tr>
+<tr>
+<td>2019.02</td>
+<td>GPT-2</td>
+<td>15 亿</td>
+<td>太强了以至于 OpenAI 一度不敢公开全部权重</td>
+</tr>
+<tr>
+<td>2020.06</td>
+<td>GPT-3</td>
+<td>1750 亿</td>
+<td>开创了 In-Context Learning，改变了行业</td>
+</tr>
+<tr>
+<td>2022.11</td>
+<td>ChatGPT</td>
+<td>基于 GPT-3.5</td>
+<td>对话式 AI 爆发，AI 进入大众视野</td>
+</tr>
+<tr>
+<td>2023.03</td>
+<td>GPT-4</td>
+<td>未公开 (传 1.8T)</td>
+<td>多模态（文字+图片），推理能力大幅提升</td>
+</tr>
+</tbody>
+</table>
+<p><strong>核心趋势</strong>：模型越来越大、数据越来越多、能力越来越强。但与此同时，训练一次 GPT-4 需要上亿美元——普通人根本玩不起。</p>
+<p>这就是 <strong>MiniMind 存在的意义</strong>：用最小的规模复现大模型的完整训练流程，让每个人都能亲手训练一个"大"语言模型。</p>
+<h3 id="4-minimind">4. MiniMind 的定位</h3>
+<p>MiniMind 是一个<strong>开源项目</strong>，它的核心理念是：</p>
+<blockquote>
+<p><strong>"用最少的资源，走完大模型训练的全部流程"</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>特点</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>参数量</td>
+<td>最小版本仅 64M（约 0.064B）</td>
+</tr>
+<tr>
+<td>训练成本</td>
+<td>一张消费级 GPU 即可完成全部训练</td>
+</tr>
+<tr>
+<td>代码实现</td>
+<td>纯 PyTorch 原生实现，不依赖高层封装</td>
+</tr>
+<tr>
+<td>训练流程</td>
+<td>涵盖预训练 → SFT → RLHF(DPO) 全链路</td>
+</tr>
+<tr>
+<td>兼容性</td>
+<td>支持 transformers / vLLM / Ollama 等主流框架</td>
+</tr>
+</tbody>
+</table>
+<p>MiniMind 就像一辆<strong>教练车</strong>：它不是法拉利，但它拥有完整的发动机、变速箱、刹车系统。通过拆解这辆教练车，你能理解所有跑车的工作原理。</p>
+<h3 id="5-llm">5. LLM 的基本工作原理</h3>
+<p>大语言模型的工作流程可以用一句话概括：</p>
+<blockquote>
+<p><strong>输入一串 token → 模型计算 → 输出下一个 token 的概率分布</strong></p>
+</blockquote>
+<h4 id="51-token">5.1 什么是 Token？</h4>
+<p>Token 是模型处理文字的<strong>最小单位</strong>。它不完全等于"字"或"词"，而是一种介于两者之间的切分方式。</p>
+<pre class="highlight"><code>&quot;我喜欢编程&quot; → [&quot;我&quot;, &quot;喜欢&quot;, &quot;编&quot;, &quot;程&quot;]  （4 个 token）
+&quot;Hello world&quot; → [&quot;Hello&quot;, &quot; world&quot;]          （2 个 token）
+</code></pre>
+
+<p>MiniMind 使用的分词器（Tokenizer）词表大小为 <strong>6400</strong>，也就是说它认识 6400 个不同的 token。相比之下，GPT-4 的词表大约有 10 万个 token。</p>
+<h4 id="52">5.2 从输入到输出的完整流程</h4>
+<pre class="highlight"><code>步骤 1：分词 (Tokenization)
+  &quot;今天天气&quot; → [token_1, token_2, token_3, token_4]
+
+步骤 2：转换为数字 (Token IDs)
+  [token_1, token_2, token_3, token_4] → [234, 567, 567, 891]
+
+步骤 3：模型计算 (Forward Pass)
+  模型内部的数亿个参数一起运算，产生一个概率分布
+
+步骤 4：输出概率分布
+  vocab_size = 6400 个词，每个词一个概率
+  &quot;好&quot; → 0.35, &quot;很&quot; → 0.20, &quot;不&quot; → 0.12, ...
+
+步骤 5：选择下一个 token
+  根据策略选出一个 token（比如选概率最高的&quot;好&quot;）
+
+步骤 6：把新 token 拼接到输入后面，重复步骤 1-5
+  &quot;今天天气好&quot; → 继续预测下一个 token...
+</code></pre>
+
+<p>这个过程叫做<strong>自回归生成（Autoregressive Generation）</strong>：模型每次只生成一个 token，然后把它加到输入末尾，再预测下一个，周而复始，直到生成完整的句子。</p>
+<h3 id="6-next-token-prediction">6. Next Token Prediction（下一个词预测）</h3>
+<p><strong>Next Token Prediction</strong> 是几乎所有大语言模型的训练目标，也是它们最核心的能力。</p>
+<h4 id="_4">训练阶段</h4>
+<p>模型会阅读海量文本，对于每一段文字，它都要回答同一个问题：</p>
+<blockquote>
+<p>"给你前面这些词，下一个词是什么？"</p>
+</blockquote>
+<pre class="highlight"><code>训练样本: &quot;北京是中国的首都&quot;
+
+模型需要学会:
+  给定 &quot;北京&quot;        → 预测 &quot;是&quot;
+  给定 &quot;北京是&quot;      → 预测 &quot;中国&quot;
+  给定 &quot;北京是中国&quot;   → 预测 &quot;的&quot;
+  给定 &quot;北京是中国的&quot; → 预测 &quot;首都&quot;
+</code></pre>
+
+<p>每次预测错了，模型就调整自己的参数，让下次预测得更准——这就是<strong>训练</strong>的过程。</p>
+<h4 id="_5">为什么这么简单的目标能产生"智能"？</h4>
+<p>这是大语言模型最令人惊叹的地方。当你要准确预测下一个词时，你不得不<strong>理解</strong>：</p>
+<ul>
+<li>语法规则（"我吃了"后面应该接名词）</li>
+<li>常识知识（"水在 100°C 会..."后面应该接"沸腾"）</li>
+<li>逻辑推理（"如果 A &gt; B, B &gt; C, 那么 A..."后面应该接"&gt; C"）</li>
+<li>情感分析（"这部电影太好看了，我..."后面大概率是正面表达）</li>
+</ul>
+<blockquote>
+<p><strong>类比</strong>：就像一个人如果能完美预测任何书的下一个字，那他一定对语言、知识、逻辑有极深的理解。</p>
+</blockquote>
+<h3 id="7-temperature">7. Temperature 和采样策略</h3>
+<p>当模型输出了概率分布后，我们要<strong>选一个 token</strong> 作为结果。怎么选？这就涉及<strong>采样策略</strong>。</p>
+<h4 id="71-greedy">7.1 贪心采样 (Greedy)</h4>
+<p>最简单的方法：每次都选概率最高的那个。</p>
+<pre class="highlight"><code>概率分布: &quot;好&quot;=0.35, &quot;很&quot;=0.20, &quot;不&quot;=0.12, ...
+选择: &quot;好&quot; (概率最高)
+</code></pre>
+
+<p><strong>缺点</strong>：生成的文本非常"无聊"，缺乏变化，容易陷入重复。</p>
+<h4 id="72-temperature">7.2 Temperature（温度）</h4>
+<p>Temperature 是一个<strong>控制随机性的旋钮</strong>：</p>
+<ul>
+<li><strong>Temperature = 0</strong>：完全确定，每次都选最高概率（等于贪心）</li>
+<li><strong>Temperature = 0.7</strong>：适中的随机性，生成比较自然</li>
+<li><strong>Temperature = 1.0</strong>：标准随机性</li>
+<li><strong>Temperature &gt; 1.5</strong>：非常随机，可能胡言乱语</li>
+</ul>
+<blockquote>
+<p><strong>类比</strong>：Temperature 就像是给模型的"创造力旋钮"。调低了，模型像个严谨的学者，每次都给最"安全"的回答；调高了，模型像个天马行空的艺术家，说出一些出人意料的话。</p>
+</blockquote>
+<h4 id="73-top-p-nucleus-sampling">7.3 Top-p 采样 (Nucleus Sampling)</h4>
+<p>只从累积概率前 p% 的 token 中采样。比如 top_p=0.9，就是从概率之和达到 90% 的那些 token 中随机选。</p>
+<pre class="highlight"><code>概率分布: &quot;好&quot;=0.35, &quot;很&quot;=0.20, &quot;不&quot;=0.12, &quot;棒&quot;=0.10, &quot;冷&quot;=0.08, ...
+top_p=0.9: 选取 {&quot;好&quot;, &quot;很&quot;, &quot;不&quot;, &quot;棒&quot;, &quot;冷&quot;, ...} 直到概率和 ≥ 0.9
+从这些候选中随机采样
+</code></pre>
+
+<p>在 MiniMind 的推理代码（<code>eval_llm.py</code>）中，你会看到 <code>temperature</code> 和 <code>top_p</code> 这两个参数：</p>
+<pre class="highlight"><code class="language-python"># MiniMind 推理代码（eval_llm.py）
+generated_ids = model.generate(
+    inputs=inputs[&quot;input_ids&quot;],
+    max_new_tokens=args.max_new_tokens,
+    do_sample=True,
+    top_p=args.top_p,
+    temperature=args.temperature,
+)
+</code></pre>
+
+<h3 id="8-decoder-only">8. Decoder-Only 架构为什么成为主流</h3>
+<p>在 Transformer 的世界里，有三种主要架构：</p>
+<table>
+<thead>
+<tr>
+<th>架构</th>
+<th>代表模型</th>
+<th>适合任务</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Encoder-Only</td>
+<td>BERT</td>
+<td>理解类任务（分类、抽取）</td>
+</tr>
+<tr>
+<td>Encoder-Decoder</td>
+<td>T5, BART</td>
+<td>翻译、摘要等 seq2seq 任务</td>
+</tr>
+<tr>
+<td><strong>Decoder-Only</strong></td>
+<td><strong>GPT, LLaMA, MiniMind</strong></td>
+<td><strong>文本生成、对话</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="decoder-only">为什么 Decoder-Only 赢了？</h4>
+<p><strong>原因 1：简单就是力量</strong></p>
+<p>Decoder-Only 架构只有一条路：从左到右，逐个生成 token。不需要 Encoder，不需要 Cross-Attention，代码更简洁，训练更高效。</p>
+<blockquote>
+<p><strong>类比</strong>：Encoder-Decoder 就像是先把中文翻译成"思维语言"（Encoder），再从"思维语言"翻译成英文（Decoder）。Decoder-Only 则跳过了中间步骤，直接"想到哪说到哪"。</p>
+</blockquote>
+<p><strong>原因 2：规模效应（Scaling Law）</strong></p>
+<p>研究发现，在相同的计算预算下，Decoder-Only 架构随参数量增大而获得的能力提升更稳定。把钱花在扩大一个 Decoder 上，比花在 Encoder + Decoder 上更划算。</p>
+<p><strong>原因 3：统一所有任务</strong></p>
+<p>通过巧妙的 prompt 设计，Decoder-Only 模型可以处理几乎所有 NLP 任务：</p>
+<pre class="highlight"><code>翻译:  &quot;请把以下句子翻译成英文：你好 →&quot;
+摘要:  &quot;请总结以下文章：[文章内容] → 摘要：&quot;
+分类:  &quot;以下评论是正面还是负面？评论：这个产品很好 → 正面&quot;
+</code></pre>
+
+<p>MiniMind 采用的正是 <strong>Decoder-Only</strong> 架构，这也是当前绝大多数大语言模型的选择。</p>
+<h3 id="9">9. 大语言模型的局限性</h3>
+<p>LLM 虽然强大，但有一些重要的局限：</p>
+<h4 id="91-hallucination">9.1 幻觉问题 (Hallucination)</h4>
+<p>模型有时会<strong>一本正经地胡说八道</strong>。它会编造不存在的事实、虚构引用来源、给出错误的数学计算结果——但语气非常自信。</p>
+<blockquote>
+<p><strong>为什么会幻觉？</strong> 因为模型的目标是"生成看起来最合理的下一个词"，而不是"生成正确的下一个词"。它不查数据库，也不做事实核验，只是在统计规律中选出最可能的续写。</p>
+</blockquote>
+<h4 id="92">9.2 无法真正"理解"</h4>
+<p>模型处理的始终是 token 序列的统计关系，它没有真正的世界模型。问它"一个苹果加一个苹果等于几个苹果"，它可能答对，但并不是因为它"理解"了加法。</p>
+<h4 id="93-knowledge-cutoff">9.3 知识截止 (Knowledge Cutoff)</h4>
+<p>模型的知识停留在训练数据的截止时间。训练数据到 2024 年的模型，不知道 2025 年发生了什么。</p>
+<h4 id="94">9.4 上下文窗口限制</h4>
+<p>模型一次能处理的 token 数量是有限的。MiniMind 的上下文窗口最大为 32768 个 token（配置中的 <code>max_position_embeddings</code>），超出部分会被截断。</p>
+<hr />
+<h2 id="minimind">📂 对应 MiniMind 源码</h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>对应文件</th>
+<th>关键代码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>模型配置（参数量等）</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class MiniMindConfig</code> — 定义了 <code>hidden_size=768</code>, <code>num_hidden_layers=8</code>, <code>vocab_size=6400</code> 等</td>
+</tr>
+<tr>
+<td>推理/生成过程</td>
+<td><code>eval_llm.py</code></td>
+<td><code>model.generate(...)</code> — 自回归生成，使用 <code>temperature</code> 和 <code>top_p</code></td>
+</tr>
+<tr>
+<td>Tokenizer（分词器）</td>
+<td><code>model/tokenizer.json</code></td>
+<td>词表大小 6400 的分词器配置文件</td>
+</tr>
+<tr>
+<td>模型主体（Decoder-Only）</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class MiniMindForCausalLM</code> — Decoder-Only 因果语言模型</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_6">🎤 面试考点</h2>
+<h3 id="q1-next-token-prediction">Q1: 什么是 Next Token Prediction？</h3>
+<p><strong>答</strong>：Next Token Prediction 是大语言模型的核心训练目标。给定一段文本的前 n 个 token，模型需要预测第 n+1 个 token 的概率分布。训练时，模型通过大量文本不断调整参数，使得预测的概率分布尽可能接近真实的下一个 token。这个看似简单的目标，迫使模型学习语法、知识、逻辑等多层次的语言能力。在自回归生成阶段，模型循环地将生成的 token 追加到输入中，逐步产出完整的文本。</p>
+<h3 id="q2-decoder-only-encoder-decoder">Q2: 为什么现在的大模型基本都用 Decoder-Only 架构，而不是 Encoder-Decoder？</h3>
+<p><strong>答</strong>：三个主要原因：<br />
+1. <strong>架构简洁</strong>：Decoder-Only 去掉了 Encoder 和 Cross-Attention，代码实现更简单，训练和推理效率更高；<br />
+2. <strong>Scaling Law 优势</strong>：实验表明，在相同计算预算下，把全部资源投入 Decoder 比分给 Encoder + Decoder 效果更好；<br />
+3. <strong>任务统一性</strong>：通过 prompt engineering，Decoder-Only 模型可以用统一的"续写"方式处理翻译、分类、摘要等几乎所有 NLP 任务，而无需针对不同任务设计不同的模型结构。</p>
+<h3 id="q3-llm-hallucination">Q3: 什么是 LLM 的幻觉问题（Hallucination），为什么会产生？</h3>
+<p><strong>答</strong>：幻觉是指大语言模型生成看似合理但事实错误的内容。产生原因在于模型的本质是<strong>统计续写</strong>——它优化的目标是"让输出的 token 序列在统计上最可能出现"，而非"让输出的内容事实正确"。模型没有外部知识库或事实核验机制，只能依赖训练数据中的统计模式。当训练数据中某个方向的信息不足或相互矛盾时，模型可能会"脑补"出不存在的事实。缓解方法包括：RAG（检索增强生成）、RLHF（人类反馈强化学习）、知识蒸馏等。</p>
+<h3 id="q4-temperature">Q4: Temperature 参数的作用是什么？</h3>
+<p><strong>答</strong>：Temperature 控制模型输出的随机程度。数学上，它作用于 softmax 之前的 logits：<code>softmax(logits / T)</code>。温度越低（趋近 0），概率分布越尖锐，模型越倾向于选择概率最高的 token，输出更确定但可能单调；温度越高（&gt;1），概率分布越平坦，低概率的 token 也有机会被选中，输出更多样但可能偏离主题。实际应用中，代码生成通常用较低温度（0.2-0.4），创意写作用较高温度（0.7-1.0）。</p>
+<h3 id="q5-minimind">Q5: MiniMind 的参数量是多少，为什么选择这个规模？</h3>
+<p><strong>答</strong>：MiniMind 最小版本（minimind-3）约 64M 参数。选择这个规模的原因是：(1) 足够小，一张消费级 GPU 就能完成全部训练；(2) 足够完整，包含了 Transformer Decoder 的所有核心组件（Attention、FFN、RoPE、GQA 等）；(3) 方便学习，代码全部由纯 PyTorch 原生实现，没有高层封装，可以逐行阅读理解。</p>
+<hr />
+<h2 id="_7">✅ 自测题</h2>
+<h3 id="1_1">题目 1（选择题）</h3>
+<p>语言模型在生成文本时的核心机制是什么？</p>
+<p>A. 从数据库中检索最匹配的答案<br />
+B. 根据已有的 token 序列，预测下一个 token 的概率分布<br />
+C. 将输入翻译成另一种语言后再翻译回来<br />
+D. 通过规则引擎匹配预设的回答模板  </p>
+<details>
+<summary>查看答案</summary>
+
+**B**。语言模型的核心是 Next Token Prediction：根据输入的 token 序列，输出下一个 token 的概率分布，然后通过采样策略选择一个 token，循环往复生成完整文本。
+
+</details>
+
+<h3 id="2_1">题目 2（选择题）</h3>
+<p>以下关于 Temperature 参数的描述，<strong>错误</strong>的是？</p>
+<p>A. Temperature = 0 时，模型输出完全确定<br />
+B. Temperature 越高，输出越随机<br />
+C. Temperature 只影响训练过程，不影响推理<br />
+D. Temperature 作用于 softmax 之前的 logits  </p>
+<details>
+<summary>查看答案</summary>
+
+**C**。Temperature 是在**推理（生成）阶段**起作用的参数，用于控制输出的随机性，与训练过程无关。
+
+</details>
+
+<h3 id="3">题目 3（简答题）</h3>
+<p>请简要说明 Encoder-Decoder 架构和 Decoder-Only 架构的区别，以及为什么 Decoder-Only 成为大模型的主流选择。</p>
+<details>
+<summary>查看答案</summary>
+
+**区别**：Encoder-Decoder 包含两个部分——Encoder 将输入编码为中间表示，Decoder 根据中间表示生成输出，两者之间通过 Cross-Attention 连接。Decoder-Only 只有 Decoder 部分，直接将输入和输出视为同一个序列，从左到右自回归生成。
+
+**为什么 Decoder-Only 成为主流**：(1) 架构更简单，训练推理效率更高；(2) Scaling Law 实验证明，同等预算下 Decoder-Only 扩展效果更好；(3) 通过 prompt 设计，Decoder-Only 能统一处理几乎所有 NLP 任务。
+
+</details>
+
+<hr />
+<h2 id="_8">🔮 下一节预告</h2>
+<p>下一节我们将深入 Transformer 的内部结构——<strong>注意力机制（Attention）</strong> 是如何让模型"看到"整个句子的？<strong>多头注意力</strong>为什么要"多个角度看问题"？Q、K、V 到底是什么？</p>
+<p>👉 <strong>L02 - Transformer 全景图：注意力就是一切</strong></p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

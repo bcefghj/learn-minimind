@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>04 - 优化与部署面试题 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="04-">04 - 优化与部署面试题</h1>
+<blockquote>
+<p>共 22 道题，涵盖 KV-Cache、MoE、YaRN、生成策略、FlashAttention、量化、推理优化、Tool Calling 等。</p>
+</blockquote>
+<hr />
+<h2 id="q1-kv-cache">Q1: KV-Cache 的原理是什么？为什么能加速推理？</h2>
+<p><strong>详细版：</strong></p>
+<p>自回归生成时，模型每一步生成一个 token，每个新 token 都需要与之前所有 token 做注意力计算。如果每步都重新计算所有 token 的 K 和 V，大量计算是重复的。</p>
+<p><strong>KV-Cache 的做法</strong>：把已经计算过的 K 和 V 缓存起来，每步只计算新 token 的 Q、K、V，然后将新的 K、V 追加到缓存中：</p>
+<pre class="highlight"><code class="language-python"># 第 t 步（生成第 t 个 token）
+q_new = linear_q(x_t)              # 只计算新 token 的 Q
+k_new = linear_k(x_t)              # 只计算新 token 的 K
+v_new = linear_v(x_t)              # 只计算新 token 的 V
+
+k_cache = torch.cat([k_cache, k_new], dim=seq_len)  # 追加到缓存
+v_cache = torch.cat([v_cache, v_new], dim=seq_len)
+
+attn = softmax(q_new @ k_cache.T / sqrt(d_k)) @ v_cache  # 新 Q 与全部 KV 做注意力
+</code></pre>
+
+<p><strong>加速原理</strong>：<br />
+- 不使用 KV-Cache：每步的计算量 O(n²d)（n 是已生成长度）<br />
+- 使用 KV-Cache：每步的计算量 O(nd)（只有新 Q 与所有 K 做点积）<br />
+- 省掉了重复计算之前 token 的 K 和 V 的线性投影</p>
+<p><strong>代价</strong>：需要额外显存来存储 KV-Cache。</p>
+<p><strong>精简版：</strong></p>
+<p>KV-Cache 缓存已计算的 K/V，每步只算新 token 的 Q/K/V。避免重复计算，将每步复杂度从 O(n²d) 降到 O(nd)。代价是需要额外显存。</p>
+<hr />
+<h2 id="q2-kv-cache">Q2: 为什么训练时不用 KV-Cache？</h2>
+<p><strong>详细版：</strong></p>
+<p>训练时不需要 KV-Cache 的根本原因是 <strong>Teacher Forcing</strong>：</p>
+<ol>
+<li>
+<p><strong>训练是并行的</strong>：通过 Causal Mask，所有位置的 Q、K、V 同时计算，一次矩阵乘法完成整个序列的注意力。不存在"逐 token 生成"的过程。</p>
+</li>
+<li>
+<p><strong>KV-Cache 是给自回归逐步生成用的</strong>：推理时一个一个生成 token，才有"之前的 KV 不变"这个条件。训练时输入序列是完整已知的。</p>
+</li>
+<li>
+<p><strong>训练需要所有位置的梯度</strong>：每个位置都参与 loss 计算和梯度回传。KV-Cache 的意义在于避免重复前向计算，但训练的前向计算本来就是并行一次性完成的。</p>
+</li>
+</ol>
+<p><strong>类比</strong>：训练就像"开卷考试"（答案全部已知，一起处理），推理就像"现场作文"（一个字一个字写，需要记住前面写了什么）。</p>
+<p><strong>精简版：</strong></p>
+<p>训练用 Teacher Forcing 并行计算所有位置，不存在逐 token 生成，不需要缓存。KV-Cache 专为推理时的自回归逐步生成设计。</p>
+<hr />
+<h2 id="q3-kv-cache">Q3: KV-Cache 的内存占用怎么计算？</h2>
+<p><strong>详细版：</strong></p>
+<p>KV-Cache 存储所有层的 K 和 V 张量。</p>
+<p><strong>单层单头的 KV-Cache 大小</strong>：<br />
+- K: (batch_size, seq_len, d_head) → batch_size × seq_len × d_head 个元素<br />
+- V: (batch_size, seq_len, d_head) → 同上</p>
+<p><strong>总 KV-Cache 大小（FP16）</strong>：</p>
+<pre class="highlight"><code>memory = 2 × n_layers × kv_heads × seq_len × d_head × batch_size × 2 bytes
+</code></pre>
+
+<p>（2 表示 K 和 V，最后的 2 bytes 是 FP16）</p>
+<p><strong>MiniMind 的 KV-Cache</strong>（batch_size=1, seq_len=512）：</p>
+<pre class="highlight"><code>= 2 × 8 × 4 × 512 × 96 × 1 × 2 bytes
+= 2 × 8 × 4 × 512 × 96 × 2
+= 6,291,456 bytes ≈ 6 MB
+</code></pre>
+
+<p><strong>GQA 对 KV-Cache 的影响</strong>：<br />
+- MHA（8 个 KV 头）的 KV-Cache 是 GQA（4 个 KV 头）的 2 倍<br />
+- 这就是 GQA 的核心价值：减少 KV-Cache 的显存占用</p>
+<p>对于大模型（如 LLaMA-70B, 80 层, 8 KV 头, d_head=128），一个 4K 序列的 KV-Cache 就要约 5 GB。</p>
+<p><strong>精简版：</strong></p>
+<p>KV-Cache = 2 × n_layers × kv_heads × seq_len × d_head × 2bytes(FP16)。MiniMind(8层,4KV头,d=96) 在 512 长度下约 6MB。GQA 的核心价值就是减半 KV-Cache。</p>
+<hr />
+<h2 id="q4-moemixture-of-experts">Q4: MoE（Mixture of Experts）的原理是什么？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>MoE 的核心思想</strong>：将 FFN 层替换为多个"专家"（Expert），每个 token 只路由到部分专家计算，从而在增加模型容量的同时不增加（或少量增加）计算量。</p>
+<p><strong>结构</strong>：</p>
+<pre class="highlight"><code>MoE-FFN(x) = Σᵢ g_i(x) · Expert_i(x)
+</code></pre>
+
+<p>其中 g(x) 是路由函数（Router/Gate），决定每个 token 分配给哪些专家。</p>
+<p><strong>Router</strong>（通常是一个线性层 + softmax）：</p>
+<pre class="highlight"><code>g(x) = softmax(W_gate · x)  →  选 Top-K 个专家
+</code></pre>
+
+<p><strong>典型配置</strong>：<br />
+- 8 或 16 个专家<br />
+- Top-K = 2（每个 token 路由到 2 个专家）<br />
+- 每个 Expert 结构与标准 FFN 相同</p>
+<p><strong>优势</strong>：<br />
+- 参数量大幅增加（8 个专家 → 参数量约 8 倍），但激活参数不变（只用 Top-K 个）<br />
+- 模型容量更大，但推理速度（FLOPs）基本不变</p>
+<p><strong>精简版：</strong></p>
+<p>MoE 将 FFN 替换为多个专家，每个 token 通过 Router 只路由到 Top-K 个专家。增加模型容量（参数量）但不增加计算量（每个 token 只激活 K 个专家）。</p>
+<hr />
+<h2 id="q5-moe-router-top-k">Q5: MoE 的 Router 是怎么工作的？Top-K 怎么选？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Router 计算</strong>：</p>
+<pre class="highlight"><code class="language-python">router_logits = self.gate(x)            # (batch, seq, n_experts)
+router_probs = F.softmax(router_logits, dim=-1)
+top_k_probs, top_k_indices = torch.topk(router_probs, k=K, dim=-1)
+top_k_probs = top_k_probs / top_k_probs.sum(dim=-1, keepdim=True)  # 归一化
+</code></pre>
+
+<p><strong>Top-K 的选择</strong>：<br />
+- <strong>K=1</strong>：每个 token 只去一个专家。计算最快，但可能损失质量<br />
+- <strong>K=2</strong>：主流选择（Mixtral、DeepSeek-MoE）。平衡了质量和效率<br />
+- <strong>K&gt;2</strong>：增加计算成本，收益递减</p>
+<p><strong>加权方式</strong>：Top-K 选出的专家按归一化后的概率加权求和：</p>
+<pre class="highlight"><code>output = Σᵢ∈TopK  (prob_i / Σ prob) · Expert_i(x)
+</code></pre>
+
+<p><strong>精简版：</strong></p>
+<p>Router 是一个线性层 + softmax，为每个 token 计算每个专家的概率。选 Top-K（通常 K=2）个概率最高的专家，按归一化概率加权求和。</p>
+<hr />
+<h2 id="q6-moe-loss">Q6: MoE 中的负载均衡 Loss 是什么？为什么需要？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>问题：专家坍缩（Expert Collapse）</strong><br />
+- 训练初期，某些专家偶然获得更多 token<br />
+- 这些专家训练得更好 → 获得更高的路由概率 → 获得更多 token（正反馈）<br />
+- 最终大部分 token 都路由到少数几个专家，其余专家闲置（"死专家"）<br />
+- 模型退化为普通 FFN，MoE 的容量优势消失</p>
+<p><strong>负载均衡 Loss</strong>（Auxiliary Load Balancing Loss）：</p>
+<pre class="highlight"><code>L_aux = α · N · Σᵢ f_i · P_i
+</code></pre>
+
+<p>其中：<br />
+- N：专家数量<br />
+- f_i：第 i 个专家实际处理的 token 比例<br />
+- P_i：Router 分配给第 i 个专家的平均概率<br />
+- α：平衡系数（通常 0.01~0.1）</p>
+<p><strong>直觉</strong>：当某个专家 f_i 和 P_i 都高时，乘积大，loss 大。优化会推动 token 更均匀地分配。</p>
+<p><strong>理想状态</strong>：每个专家处理 1/N 的 token。</p>
+<p><strong>精简版：</strong></p>
+<p>MoE 容易出现专家坍缩（大部分 token 涌向少数专家）。负载均衡 Loss = α·N·Σ(f_i·P_i) 惩罚不均匀分配，推动 token 均匀路由到各专家。</p>
+<hr />
+<h2 id="q7-yarn">Q7: YaRN 长度外推的原理是什么？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>问题</strong>：RoPE 在训练长度内效果好，但超出训练长度后，位置编码的旋转角度超出了训练时见过的范围，注意力分数和 PPL 急剧恶化。</p>
+<p><strong>YaRN</strong>（Yet another RoPE extensioN）是一种动态调整 RoPE 以支持更长上下文的方法，它综合了以下技术：</p>
+<ol>
+<li><strong>NTK-aware 插值</strong>：不是简单地线性插值位置编码（压缩所有频率），而是根据频率的不同做差异化处理：</li>
+<li>高频分量（捕获局部关系）：不做或少做插值</li>
+<li>
+<p>低频分量（捕获全局关系）：做更多的插值</p>
+</li>
+<li>
+<p><strong>实现方式</strong>：修改 RoPE 的 base 参数：<br />
+<code>base_new = base × (scale_factor)^{dim/(dim-2)}</code><br />
+   这使得不同频率的缩放比例不同。</p>
+</li>
+<li>
+<p><strong>注意力温度缩放</strong>：对注意力分数做额外的缩放，补偿外推时的信息熵变化。</p>
+</li>
+</ol>
+<p><strong>MiniMind 的配置</strong>：<br />
+- rope_theta = 1e6（比默认的 10000 大 100 倍）<br />
+- 更大的 base 本身就有利于长度外推<br />
+- 支持 YaRN 方案做进一步扩展</p>
+<p><strong>精简版：</strong></p>
+<p>YaRN 通过 NTK-aware 插值差异化处理不同频率的 RoPE：高频（局部关系）保持不变，低频（全局关系）做更多插值。MiniMind 的 rope_theta=1e6 本身有利于外推，并支持 YaRN 进一步扩展。</p>
+<hr />
+<h2 id="q8">Q8: 文本生成策略有哪些？各有什么特点？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>公式/方法</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Greedy</strong></td>
+<td>token = argmax(logits)</td>
+<td>确定性、快、容易重复</td>
+</tr>
+<tr>
+<td><strong>Temperature</strong></td>
+<td>p = softmax(logits/T)</td>
+<td>T&lt;1 更确定，T&gt;1 更随机</td>
+</tr>
+<tr>
+<td><strong>Top-K</strong></td>
+<td>只保留概率最高的 K 个 token</td>
+<td>避免低概率 token</td>
+</tr>
+<tr>
+<td><strong>Top-P (Nucleus)</strong></td>
+<td>保留累积概率达到 P 的最小集合</td>
+<td>自适应候选集大小</td>
+</tr>
+<tr>
+<td><strong>Beam Search</strong></td>
+<td>维护 B 条最优序列</td>
+<td>常用于翻译，LLM 较少用</td>
+</tr>
+<tr>
+<td><strong>Repetition Penalty</strong></td>
+<td>对已生成的 token 降低概率</td>
+<td>减少重复</td>
+</tr>
+</tbody>
+</table>
+<p><strong>常见组合</strong>：Temperature + Top-P（先调温度再截断）</p>
+<p><strong>各参数的影响</strong>：<br />
+- Temperature = 0（≈Greedy）：最确定但最无聊<br />
+- Temperature = 0.7 + Top-P = 0.9：常用的"创意写作"参数<br />
+- Temperature = 0.1 + Top-P = 0.95：常用的"精确回答"参数<br />
+- Top-K = 50：固定候选集大小，不如 Top-P 灵活</p>
+<p><strong>Top-K vs Top-P</strong>：<br />
+- Top-K 固定候选数量，但不同 token 位置需要的候选数不同<br />
+- Top-P 自适应：确定性强的位置（如 "Barack" 后面几乎一定是 "Obama"）候选少，不确定的位置候选多</p>
+<p><strong>精简版：</strong></p>
+<p>Greedy 取 argmax；Temperature 控制分布锐度；Top-K 保留前 K 个；Top-P 保留累积概率达 P 的集合（自适应）。常用组合：T=0.7 + Top-P=0.9。Top-P 比 Top-K 更灵活。</p>
+<hr />
+<h2 id="q9-flashattention">Q9: FlashAttention 的原理是什么？它为什么更快？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>核心问题</strong>：标准注意力需要在 GPU HBM（高带宽内存）中存储 n×n 的注意力矩阵，这个矩阵的读写是瓶颈。</p>
+<p><strong>FlashAttention 的核心思想</strong>：IO-aware，利用 GPU 的内存层次结构（SRAM 快但小，HBM 慢但大），通过 <strong>分块计算（Tiling）</strong> 避免在 HBM 中存储完整的注意力矩阵。</p>
+<p><strong>关键技术</strong>：<br />
+1. <strong>分块（Tiling）</strong>：将 Q、K、V 分成小块，每次只在 SRAM 中处理一小块<br />
+2. <strong>在线 Softmax</strong>：在不存储完整注意力矩阵的情况下，正确计算 softmax（使用 Online Softmax 算法：维护 running max 和 running sum）<br />
+3. <strong>反向传播优化</strong>：不存储注意力矩阵，反向传播时重新计算（recomputation），用计算换内存</p>
+<p><strong>效果</strong>：<br />
+- <strong>速度</strong>：比标准实现快 2-4 倍（减少 HBM 读写）<br />
+- <strong>内存</strong>：O(n) 而非 O(n²)（不存储注意力矩阵）<br />
+- <strong>数学上等价</strong>：输出结果完全相同</p>
+<p><strong>注意</strong>：FlashAttention 没有改变注意力的计算复杂度（仍然 O(n²d)），只是通过优化内存访问模式减少了实际运行时间。</p>
+<p><strong>精简版：</strong></p>
+<p>FlashAttention 将 QKV 分块在 SRAM 中计算，避免在 HBM 中存储 n²的注意力矩阵。用 Online Softmax 实现分块正确的 softmax。速度快 2-4 倍，内存 O(n²)→O(n)，输出数学等价。</p>
+<hr />
+<h2 id="q10-int8int4">Q10: 模型量化是什么？INT8/INT4 量化有什么区别？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>量化</strong>将模型权重从高精度（FP32/FP16）压缩到低精度（INT8/INT4），减少模型大小和推理时的内存占用。</p>
+<p><strong>INT8 量化</strong>（8 bit）：<br />
+- 将 FP16 权重映射到 [-128, 127] 的整数<br />
+- 模型大小减半（16bit → 8bit）<br />
+- 质量损失很小<br />
+- 公式：w_int8 = round(w_fp16 / scale)，scale = max(|w|) / 127</p>
+<p><strong>INT4 量化</strong>（4 bit）：<br />
+- 将权重映射到 4 bit 整数（16 个值）<br />
+- 模型大小为 FP16 的 1/4<br />
+- 质量损失较明显，需要更精细的量化策略（如分组量化）</p>
+<p><strong>量化方法</strong>：<br />
+- <strong>PTQ（Post-Training Quantization）</strong>：训练后直接量化，简单但可能损失较大<br />
+- <strong>QAT（Quantization-Aware Training）</strong>：训练时模拟量化效果，质量更好但需要重新训练<br />
+- <strong>GPTQ</strong>：基于二阶信息的 PTQ，目前效果最好的 PTQ 方法之一<br />
+- <strong>AWQ</strong>：保护重要权重通道不量化</p>
+<table>
+<thead>
+<tr>
+<th>精度</th>
+<th>模型大小（per param）</th>
+<th>质量</th>
+<th>速度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP16</td>
+<td>2 bytes</td>
+<td>最好</td>
+<td>基准</td>
+</tr>
+<tr>
+<td>INT8</td>
+<td>1 byte</td>
+<td>接近 FP16</td>
+<td>更快（INT8 计算更快）</td>
+</tr>
+<tr>
+<td>INT4</td>
+<td>0.5 bytes</td>
+<td>有损失</td>
+<td>最快</td>
+</tr>
+</tbody>
+</table>
+<p><strong>精简版：</strong></p>
+<p>量化将 FP16 权重压缩为 INT8（模型减半）或 INT4（减为 1/4）。INT8 质量损失小，INT4 需要分组量化等技巧。方法有 PTQ（训练后量化）和 QAT（训练感知量化）。</p>
+<hr />
+<h2 id="q11-vllm-llamacpp">Q11: vLLM 和 llama.cpp 有什么区别？各适合什么场景？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>vLLM</th>
+<th>llama.cpp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>语言</td>
+<td>Python + CUDA</td>
+<td>C/C++</td>
+</tr>
+<tr>
+<td>后端</td>
+<td>GPU（CUDA）</td>
+<td>CPU / GPU（GGML/GGUF）</td>
+</tr>
+<tr>
+<td>核心优化</td>
+<td>PagedAttention</td>
+<td>量化（GGUF 格式）</td>
+</tr>
+<tr>
+<td>适合场景</td>
+<td>高并发 GPU 推理服务</td>
+<td>边缘设备 / CPU 推理 / 轻量部署</td>
+</tr>
+<tr>
+<td>吞吐量</td>
+<td>高（PagedAttention 优化内存碎片）</td>
+<td>中等</td>
+</tr>
+<tr>
+<td>支持量化</td>
+<td>FP16/INT8/AWQ/GPTQ</td>
+<td>INT4/INT8/FP16 等多种 GGUF 格式</td>
+</tr>
+<tr>
+<td>API</td>
+<td>OpenAI 兼容 API</td>
+<td>命令行 / API</td>
+</tr>
+</tbody>
+</table>
+<p><strong>vLLM 的 PagedAttention</strong>：<br />
+- 借鉴操作系统的虚拟内存分页思想<br />
+- KV-Cache 不需要连续内存，按"页"分配<br />
+- 避免 KV-Cache 的内存碎片和预分配浪费<br />
+- 支持更大的 batch 和更高的并发</p>
+<p><strong>llama.cpp 的优势</strong>：<br />
+- 纯 C/C++ 实现，无 Python/CUDA 依赖<br />
+- 可在 CPU 上运行，支持 macOS Metal、OpenCL 等<br />
+- 量化格式丰富，INT4 模型可以在消费级设备上运行</p>
+<p><strong>精简版：</strong></p>
+<p>vLLM 是 GPU 高并发推理引擎，核心是 PagedAttention 优化 KV-Cache 内存。llama.cpp 是 C++ 实现，支持 CPU/边缘设备，核心是 GGUF 格式量化。前者适合服务端，后者适合轻量部署。</p>
+<hr />
+<h2 id="q12-tool-calling">Q12: Tool Calling（工具调用）是怎么实现的？</h2>
+<p><strong>详细版：</strong></p>
+<p>Tool Calling 让 LLM 能够调用外部工具（如搜索引擎、计算器、API）来补充自身能力。</p>
+<p><strong>实现流程</strong>：<br />
+1. <strong>定义工具</strong>：用 JSON Schema 描述可用工具的名称、参数、功能<br />
+2. <strong>SFT 训练</strong>：用包含工具调用的对话数据训练模型，让模型学会生成结构化的工具调用指令<br />
+3. <strong>推理流程</strong>：<br />
+<code>User: 今天北京天气怎么样？
+   Assistant: &lt;tool_call&gt;{"name": "weather", "arguments": {"city": "北京"}}&lt;/tool_call&gt;
+   System: [工具返回] {"temp": "22°C", "weather": "晴"}
+   Assistant: 今天北京天气晴朗，气温 22°C。</code><br />
+4. <strong>格式约定</strong>：模型输出特殊 token 或特定格式标记工具调用<br />
+5. <strong>执行引擎</strong>：外部程序解析模型输出、调用工具、将结果注入对话</p>
+<p><strong>训练数据构造</strong>：<br />
+- 构造包含 tool_call 标记的对话数据<br />
+- 模型需要学会：何时调用工具、调用哪个工具、传什么参数<br />
+- SFT loss 仍然只计算 assistant 部分</p>
+<p><strong>精简版：</strong></p>
+<p>Tool Calling 通过 SFT 让模型学会在需要时生成结构化的工具调用指令（如 JSON 格式）。外部引擎解析指令、执行工具、将结果回注对话。训练时用包含工具调用的对话数据。</p>
+<hr />
+<h2 id="q13-adaptive-thinking">Q13: Adaptive Thinking（自适应思考）是什么概念？</h2>
+<p><strong>详细版：</strong></p>
+<p>Adaptive Thinking 让模型根据问题的复杂度自适应地调整"思考深度"：</p>
+<ul>
+<li><strong>简单问题</strong>（如 "1+1=?"）：直接回答，不需要长篇推理</li>
+<li><strong>复杂问题</strong>（如 "证明勾股定理"）：展开详细的推理链</li>
+</ul>
+<p><strong>实现方式</strong>：<br />
+1. <strong>思考 token</strong>：引入特殊的 <code>&lt;think&gt;...&lt;/think&gt;</code> 标记，模型在标记内做推理<br />
+2. <strong>训练数据</strong>：包含不同复杂度的问题，简单问题的 <code>&lt;think&gt;</code> 部分较短或为空，复杂问题有详细推理<br />
+3. <strong>模型学会</strong>：根据输入的复杂度动态决定思考链的长度</p>
+<p><strong>与 Chain-of-Thought 的关系</strong>：<br />
+- CoT：始终输出推理过程<br />
+- Adaptive Thinking：根据需要决定是否输出、输出多少推理过程<br />
+- 更高效：简单问题不浪费 token</p>
+<p><strong>精简版：</strong></p>
+<p>Adaptive Thinking 让模型根据问题复杂度自适应调整推理深度。通过 <code>&lt;think&gt;</code> 标记实现，简单问题直接回答，复杂问题展开推理。比固定 CoT 更高效。</p>
+<hr />
+<h2 id="q14">Q14: 模型格式转换有哪些常见场景？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>格式</th>
+<th>说明</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PyTorch (.pt/.bin)</strong></td>
+<td>PyTorch 原生格式</td>
+<td>训练、研究</td>
+</tr>
+<tr>
+<td><strong>Safetensors (.safetensors)</strong></td>
+<td>HuggingFace 安全格式</td>
+<td>替代 pickle，更安全</td>
+</tr>
+<tr>
+<td><strong>GGUF</strong></td>
+<td>llama.cpp 的量化格式</td>
+<td>CPU/边缘设备推理</td>
+</tr>
+<tr>
+<td><strong>ONNX</strong></td>
+<td>开放神经网络交换格式</td>
+<td>跨框架部署</td>
+</tr>
+<tr>
+<td><strong>TensorRT</strong></td>
+<td>NVIDIA 优化推理引擎格式</td>
+<td>GPU 高性能推理</td>
+</tr>
+</tbody>
+</table>
+<p><strong>常见转换流程</strong>：<br />
+1. 训练完成 → PyTorch 格式<br />
+2. 上传 HuggingFace → 转换为 Safetensors<br />
+3. 本地部署 → 转换为 GGUF（llama.cpp 的 convert 工具）<br />
+4. GPU 生产部署 → 转换为 TensorRT</p>
+<p><strong>MiniMind 的格式转换</strong>：<br />
+- 训练输出 PyTorch 格式<br />
+- 可转为 HuggingFace 格式（兼容 transformers 库）<br />
+- 可转为 GGUF 格式在 llama.cpp 上运行</p>
+<p><strong>精简版：</strong></p>
+<p>常见格式：PyTorch（训练）→ Safetensors（HuggingFace）→ GGUF（llama.cpp 边缘部署）/ TensorRT（GPU 高性能部署）/ ONNX（跨框架）。</p>
+<hr />
+<h2 id="q15">Q15: 推理延迟优化有哪些方法？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>效果</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KV-Cache</strong></td>
+<td>必备</td>
+<td>缓存已计算的 KV，避免重复计算</td>
+</tr>
+<tr>
+<td><strong>FlashAttention</strong></td>
+<td>2-4x 加速</td>
+<td>IO-aware 分块计算，减少 HBM 访问</td>
+</tr>
+<tr>
+<td><strong>量化</strong></td>
+<td>INT8 加速 50%+</td>
+<td>低精度计算，减少内存和带宽</td>
+</tr>
+<tr>
+<td><strong>Speculative Decoding</strong></td>
+<td>2-3x 加速</td>
+<td>小模型草拟多个 token，大模型一次验证</td>
+</tr>
+<tr>
+<td><strong>Continuous Batching</strong></td>
+<td>吞吐提升 5-10x</td>
+<td>请求级别的动态 batching</td>
+</tr>
+<tr>
+<td><strong>PagedAttention</strong></td>
+<td>内存利用率提升</td>
+<td>消除 KV-Cache 内存碎片</td>
+</tr>
+<tr>
+<td><strong>Tensor Parallelism</strong></td>
+<td>延迟降低</td>
+<td>将模型切分到多卡并行推理</td>
+</tr>
+<tr>
+<td><strong>Kernel Fusion</strong></td>
+<td>10-20% 加速</td>
+<td>合并多个小算子减少 kernel launch 开销</td>
+</tr>
+<tr>
+<td><strong>GQA/MQA</strong></td>
+<td>KV-Cache 减少</td>
+<td>减少 KV 头数，降低内存和带宽</td>
+</tr>
+</tbody>
+</table>
+<p><strong>按优先级排序</strong>：<br />
+1. KV-Cache（基础，不用就别做 LLM）<br />
+2. 量化（ROI 最高）<br />
+3. FlashAttention（几乎免费的加速）<br />
+4. Continuous Batching（服务端必备）<br />
+5. 其他（根据场景选择）</p>
+<p><strong>精简版：</strong></p>
+<p>优先级：KV-Cache（必备）→ 量化（ROI 最高）→ FlashAttention（免费加速）→ Continuous Batching（提吞吐）→ Speculative Decoding/TP 等。</p>
+<hr />
+<h2 id="q16-speculative-decoding">Q16: Speculative Decoding（推测解码）的原理是什么？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>核心思想</strong>：用一个小而快的模型（Draft Model）先快速生成多个 token 的草稿，再用大模型（Target Model）一次性验证。</p>
+<p><strong>流程</strong>：<br />
+1. Draft Model 自回归生成 K 个 token：t₁, t₂, ..., t_K<br />
+2. Target Model 接收 prefix + [t₁, ..., t_K]，一次前向传播得到每个位置的概率分布<br />
+3. 逐位验证：比较 Draft Model 和 Target Model 在每个位置的概率<br />
+4. 如果 Target 同意 Draft 的选择（概率足够高），接受该 token<br />
+5. 遇到第一个不接受的位置，从 Target Model 的分布中重新采样<br />
+6. 被接受的 token 都是精确的（与纯用 Target Model 生成的分布完全一致）</p>
+<p><strong>加速原理</strong>：<br />
+- 大模型的主要开销在前向传播，但验证 K 个 token 和生成 1 个 token 的前向传播时间接近（同一 batch）<br />
+- 如果 Draft Model 足够好（接受率高），一次验证可以确认 K 个 token，等效加速 K 倍</p>
+<p><strong>精简版：</strong></p>
+<p>用小模型快速草拟 K 个 token，大模型一次前向验证。被接受的 token 与大模型直接生成分布一致。验证 K 个 token 的成本接近生成 1 个，可加速 2-3 倍。</p>
+<hr />
+<h2 id="q17-continuous-batching-static-batching">Q17: Continuous Batching 和 Static Batching 有什么区别？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Static Batching</strong>：<br />
+- 一批请求一起进入，一起结束<br />
+- 如果某个请求很早生成完毕（如 EOS），它的 GPU 资源闲置直到整批完成<br />
+- 浪费严重</p>
+<p><strong>Continuous Batching（也叫 Iteration-level Batching）</strong>：<br />
+- 每生成一个 token 后，检查是否有请求完成（遇到 EOS）<br />
+- 完成的请求立即移出，新请求立即加入<br />
+- GPU 资源始终被充分利用</p>
+<p><strong>效果</strong>：<br />
+- 吞吐量提升 5-10 倍<br />
+- 延迟更稳定<br />
+- GPU 利用率显著提高</p>
+<p><strong>vLLM 和 TGI（Text Generation Inference）都实现了 Continuous Batching</strong>。</p>
+<p><strong>精简版：</strong></p>
+<p>Static Batching 等最慢的请求完成才能处理新请求，GPU 浪费严重。Continuous Batching 每步动态增删请求，GPU 利用率高，吞吐提升 5-10 倍。</p>
+<hr />
+<h2 id="q18-prefill-decode">Q18: Prefill 和 Decode 阶段有什么区别？</h2>
+<p><strong>详细版：</strong></p>
+<p>LLM 推理分为两个阶段：</p>
+<p><strong>Prefill（预填充）阶段</strong>：<br />
+- 处理整个 prompt（输入序列）<br />
+- 一次性并行计算所有 prompt token 的 KV-Cache<br />
+- 计算密集型（compute-bound），GPU 计算利用率高<br />
+- 类似训练的前向传播</p>
+<p><strong>Decode（解码）阶段</strong>：<br />
+- 逐 token 自回归生成<br />
+- 每步只处理一个新 token<br />
+- 内存密集型（memory-bound），大量时间花在读取 KV-Cache 上<br />
+- GPU 计算利用率低（矩阵太小无法充分利用并行度）</p>
+<p><strong>优化方向不同</strong>：<br />
+- Prefill：FlashAttention、Tensor Parallelism<br />
+- Decode：KV-Cache 优化、量化减少带宽、Speculative Decoding</p>
+<p><strong>Chunked Prefill</strong>：将长 prompt 分块处理，与 decode 请求交错调度，提高整体效率。</p>
+<p><strong>精简版：</strong></p>
+<p>Prefill 并行处理整个 prompt 生成 KV-Cache（计算密集），Decode 逐 token 生成（内存密集）。优化方向不同：Prefill 用 FlashAttention，Decode 用 KV-Cache 优化和量化。</p>
+<hr />
+<h2 id="q19-tensor-parallelism-pipeline-parallelism">Q19: 什么是 Tensor Parallelism 和 Pipeline Parallelism？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Tensor Parallelism（TP，张量并行）</strong>：<br />
+- 将单个层的权重矩阵切分到多张 GPU 上<br />
+- 例如：将 FFN 的 W₁ 按列切分到 2 张卡，各计算一半，再合并<br />
+- 需要每层通信（AllReduce），适合同一节点内的多卡<br />
+- <strong>降低单请求延迟</strong></p>
+<p><strong>Pipeline Parallelism（PP，流水线并行）</strong>：<br />
+- 将不同层分配到不同 GPU<br />
+- 例如：8 层模型，GPU0 处理 1-4 层，GPU1 处理 5-8 层<br />
+- 层间传递激活值，通信量小<br />
+- 存在流水线气泡（bubble），需要微批次调度来减少</p>
+<p><strong>Data Parallelism（DP，数据并行）</strong>：<br />
+- 每张 GPU 持有完整模型，处理不同数据<br />
+- DDP 的方式</p>
+<p><strong>组合使用</strong>（3D Parallelism）：<br />
+- 大规模训练通常同时使用 DP + TP + PP<br />
+- 例如：4 节点各 8 卡 = 32 卡，TP=8（节点内），PP=2（节点间），DP=2</p>
+<p><strong>精简版：</strong></p>
+<p>TP 切分单层权重到多卡（降延迟，通信频繁）；PP 不同层放不同卡（通信少但有气泡）；DP 每卡完整模型处理不同数据。大规模训练三者组合使用。</p>
+<hr />
+<h2 id="q20-bf16-fp16">Q20: BF16 和 FP16 有什么区别？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>FP16</th>
+<th>BF16</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>总位数</td>
+<td>16</td>
+<td>16</td>
+</tr>
+<tr>
+<td>指数位</td>
+<td>5</td>
+<td>8</td>
+</tr>
+<tr>
+<td>尾数位</td>
+<td>10</td>
+<td>7</td>
+</tr>
+<tr>
+<td>数值范围</td>
+<td>±65504</td>
+<td>±3.4×10³⁸（与 FP32 相同）</td>
+</tr>
+<tr>
+<td>精度</td>
+<td>约 3-4 位有效数字</td>
+<td>约 2-3 位有效数字</td>
+</tr>
+<tr>
+<td>溢出风险</td>
+<td>高（范围小）</td>
+<td>低（范围与 FP32 相同）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>BF16 的优势</strong>：<br />
+- 动态范围与 FP32 相同，几乎不会溢出<br />
+- 混合精度训练更稳定，不太需要 Loss Scaling<br />
+- A100/H100 等新 GPU 对 BF16 有原生支持</p>
+<p><strong>FP16 的优势</strong>：<br />
+- 精度更高（尾数多 3 位）<br />
+- 在不溢出的情况下数值更准确<br />
+- 更多 GPU 支持（包括较老的 GPU）</p>
+<p><strong>选择建议</strong>：<br />
+- 如果 GPU 支持 BF16（A100+），优先使用 BF16<br />
+- 3090 支持 BF16，但 Tensor Core 对 BF16 的加速不如 A100<br />
+- FP16 + Loss Scaling 在大多数场景也能工作</p>
+<p><strong>精简版：</strong></p>
+<p>BF16 指数 8 位（范围大不易溢出）、尾数 7 位（精度低）；FP16 指数 5 位（范围小易溢出）、尾数 10 位（精度高）。BF16 训练更稳定，A100+ 优先用 BF16。</p>
+<hr />
+<h2 id="q21-llm">Q21: 如何评估 LLM 的生成质量？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>自动评估指标</strong>：<br />
+1. <strong>Perplexity (PPL)</strong>：语言模型的基础指标，越低越好<br />
+2. <strong>BLEU/ROUGE</strong>：与参考文本的重叠度，适合翻译/摘要<br />
+3. <strong>Pass@K</strong>：代码生成的通过率（如 HumanEval）<br />
+4. <strong>Accuracy</strong>：在选择题 benchmark 上的准确率（MMLU, HellaSwag 等）</p>
+<p><strong>人工评估</strong>：<br />
+- 流畅性、信息准确性、有帮助程度<br />
+- A/B 对比测试<br />
+- Elo 排名（如 Chatbot Arena）</p>
+<p><strong>LLM-as-Judge</strong>：<br />
+- 用强 LLM（如 GPT-4）评估弱 LLM 的输出<br />
+- 成本低于人工评估，但有偏见</p>
+<p><strong>MiniMind 的评估</strong>：<br />
+- PPL 作为预训练质量指标<br />
+- 对话质量主要靠人工评估（小模型在 benchmark 上分数不高）</p>
+<p><strong>精简版：</strong></p>
+<p>自动指标：PPL（语言模型质量）、BLEU/ROUGE（文本匹配）、Accuracy（benchmark）。人工评估：流畅性、准确性。LLM-as-Judge 用强模型评弱模型。</p>
+<hr />
+<h2 id="q22-gradcheckpointing">Q22: 什么是 GradCheckpointing（梯度检查点/重计算）？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>问题</strong>：训练时需要保存所有中间激活值（activations）用于反向传播，显存占用很大。</p>
+<p><strong>GradCheckpointing 的做法</strong>：<br />
+- 前向传播时不保存某些层的中间激活值<br />
+- 反向传播到这些层时，重新执行前向传播计算中间值<br />
+- 用<strong>时间换空间</strong></p>
+<p><strong>效果</strong>：<br />
+- 显存占用大幅减少（通常减少 60-70%）<br />
+- 训练速度降低 20-30%（因为要重新计算）<br />
+- 可以训练更大的模型或使用更大的 batch_size</p>
+<p><strong>PyTorch 实现</strong>：</p>
+<pre class="highlight"><code class="language-python">from torch.utils.checkpoint import checkpoint
+
+class TransformerBlock(nn.Module):
+    def forward(self, x):
+        x = x + checkpoint(self.attention, self.norm1(x))
+        x = x + checkpoint(self.ffn, self.norm2(x))
+        return x
+</code></pre>
+
+<p><strong>精简版：</strong></p>
+<p>GradCheckpointing：前向不保存中间激活值，反向时重新计算。用时间（慢 20-30%）换空间（省 60-70% 显存），可训练更大模型或用更大 batch。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

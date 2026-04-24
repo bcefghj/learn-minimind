@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L03 - PyTorch 快速上手 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l03-pytorch">L03 - PyTorch 快速上手</h1>
+<blockquote>
+<p><strong>"工欲善其事，必先利其器"</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解 PyTorch 是什么以及为什么 MiniMind 使用它</li>
+<li>掌握 Tensor（张量）的概念和常用操作</li>
+<li>理解自动求导（autograd）和梯度的含义</li>
+<li>学会用 <code>nn.Module</code> 搭建神经网络</li>
+<li>掌握训练循环的完整流程：forward → loss → backward → step</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>阅读完 L01 和 L02，对 Transformer 架构有基本印象</li>
+<li>会用 Python 写简单的代码（变量、函数、循环、列表）</li>
+<li>如果你完全没学过 Python 也没关系，本节的代码示例都有详细注释</li>
+</ul>
+<hr />
+<h2 id="_3">正文讲解</h2>
+<h3 id="1-pytorch">1. 什么是 PyTorch？</h3>
+<p><strong>PyTorch</strong> 是一个开源的深度学习框架，由 Meta（Facebook）开发和维护。它是目前<strong>学术界和工业界最流行</strong>的深度学习工具之一。</p>
+<blockquote>
+<p><strong>类比</strong>：如果深度学习是"盖房子"，那 PyTorch 就是你的<strong>工具箱</strong>——里面有锤子（张量运算）、卷尺（自动求导）、电钻（GPU 加速）、蓝图模板（nn.Module）。你不需要从冶铁开始，直接用工具箱里的东西就能搭建复杂的模型。</p>
+</blockquote>
+<h4 id="minimind-pytorch">为什么 MiniMind 选择 PyTorch？</h4>
+<table>
+<thead>
+<tr>
+<th>原因</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>纯原生实现</strong></td>
+<td>MiniMind 的核心代码完全用 PyTorch 原生 API 编写，不依赖 HuggingFace 的高层封装</td>
+</tr>
+<tr>
+<td><strong>代码可读性</strong></td>
+<td>PyTorch 的代码风格接近普通 Python，容易阅读和理解</td>
+</tr>
+<tr>
+<td><strong>动态计算图</strong></td>
+<td>调试方便，可以随时 print 中间结果</td>
+</tr>
+<tr>
+<td><strong>社区生态</strong></td>
+<td>与 transformers、vLLM、Ollama 等框架天然兼容</td>
+</tr>
+<tr>
+<td><strong>GPU 支持</strong></td>
+<td>一行代码切换 CPU/GPU，加速训练</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-tensor">2. Tensor（张量）基础</h3>
+<h4 id="21">2.1 什么是张量？</h4>
+<p>张量是 PyTorch 中<strong>最基本的数据结构</strong>，可以理解为"多维数组"。</p>
+<blockquote>
+<p><strong>类比</strong>：张量就是数据的"容器"，不同维度的容器有不同的名字：</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>数学名称</th>
+<th>例子</th>
+<th>PyTorch 形状</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0 维</td>
+<td><strong>标量 (Scalar)</strong></td>
+<td>温度 <code>25.5</code></td>
+<td><code>torch.tensor(25.5)</code> → shape <code>()</code></td>
+</tr>
+<tr>
+<td>1 维</td>
+<td><strong>向量 (Vector)</strong></td>
+<td>一个词的嵌入 <code>[0.1, 0.3, 0.5]</code></td>
+<td>shape <code>(3,)</code></td>
+</tr>
+<tr>
+<td>2 维</td>
+<td><strong>矩阵 (Matrix)</strong></td>
+<td>一批词的嵌入</td>
+<td>shape <code>(4, 768)</code> → 4 个词，每个 768 维</td>
+</tr>
+<tr>
+<td>3 维</td>
+<td><strong>3D 张量</strong></td>
+<td>一个 batch 的句子</td>
+<td>shape <code>(2, 4, 768)</code> → 2 个句子，每句 4 个词</td>
+</tr>
+<tr>
+<td>N 维</td>
+<td><strong>N 维张量</strong></td>
+<td>多头注意力的中间结果</td>
+<td>shape <code>(2, 8, 4, 96)</code> → batch × heads × seq × dim</td>
+</tr>
+</tbody>
+</table>
+<p>在 MiniMind 中，数据几乎全程以张量形式流动。理解张量的形状（shape）变换是读懂源码的关键。</p>
+<h4 id="22">2.2 创建张量</h4>
+<pre class="highlight"><code class="language-python">import torch
+
+# 从 Python 列表创建
+a = torch.tensor([1, 2, 3])           # 一维：向量
+b = torch.tensor([[1, 2], [3, 4]])     # 二维：矩阵
+
+# 常用创建函数
+zeros = torch.zeros(3, 4)             # 3×4 的全零矩阵
+ones = torch.ones(2, 3)               # 2×3 的全一矩阵
+rand = torch.randn(2, 768)            # 2×768 的随机正态分布（模拟词嵌入）
+
+# 查看形状
+print(rand.shape)                      # torch.Size([2, 768])
+print(rand.dtype)                      # torch.float32（默认数据类型）
+</code></pre>
+
+<h4 id="23">2.3 基本运算</h4>
+<pre class="highlight"><code class="language-python">x = torch.tensor([1.0, 2.0, 3.0])
+y = torch.tensor([4.0, 5.0, 6.0])
+
+# 逐元素运算
+print(x + y)       # tensor([5., 7., 9.])
+print(x * y)       # tensor([4., 10., 18.])（逐元素乘，不是矩阵乘）
+print(x ** 2)      # tensor([1., 4., 9.])
+
+# 聚合运算
+print(x.sum())     # tensor(6.)
+print(x.mean())    # tensor(2.)
+print(x.max())     # tensor(3.)
+</code></pre>
+
+<h4 id="24-view-reshape">2.4 形状变换（view / reshape）</h4>
+<p>在 MiniMind 的代码中，你会频繁看到 <code>.view()</code> 和 <code>.reshape()</code> — 它们都是改变张量形状的操作。</p>
+<pre class="highlight"><code class="language-python">x = torch.randn(2, 12)       # 形状 (2, 12)
+
+# 变换为 (2, 3, 4) — 相当于把 12 拆成 3×4
+y = x.view(2, 3, 4)
+print(y.shape)                # torch.Size([2, 3, 4])
+
+# 用 -1 让 PyTorch 自动推算
+z = x.view(2, -1, 4)         # -1 的位置自动推算为 3
+print(z.shape)                # torch.Size([2, 3, 4])
+</code></pre>
+
+<blockquote>
+<p><strong>在 MiniMind 中的实际应用</strong>：多头注意力需要把形状为 <code>(batch, seq_len, d_model)</code> 的张量变换成 <code>(batch, n_heads, seq_len, head_dim)</code>，这就是通过 <code>view</code> + <code>transpose</code> 完成的。</p>
+</blockquote>
+<h4 id="25">2.5 矩阵乘法</h4>
+<p>矩阵乘法是 Transformer 中最频繁的运算（Attention 中的 QK^T、FFN 中的全连接层）。</p>
+<pre class="highlight"><code class="language-python"># 二维矩阵乘法
+A = torch.randn(3, 4)    # 3×4
+B = torch.randn(4, 5)    # 4×5
+C = A @ B                # 3×5（@ 是矩阵乘法运算符）
+# 等价于 C = torch.matmul(A, B)
+
+# 批量矩阵乘法（Attention 中常用）
+Q = torch.randn(2, 8, 10, 96)   # (batch, heads, seq_len, head_dim)
+K = torch.randn(2, 8, 10, 96)   # 同上
+attn = Q @ K.transpose(-2, -1)  # Q·K^T → (2, 8, 10, 10)
+</code></pre>
+
+<h3 id="3-autograd">3. 自动求导 autograd</h3>
+<h4 id="31">3.1 什么是梯度？</h4>
+<blockquote>
+<p><strong>类比</strong>：假设你蒙着眼睛站在一座山上，想要走到山谷（最低点）。你不能看到全景，但可以感受脚下地面的<strong>倾斜方向</strong>——这就是<strong>梯度</strong>。梯度告诉你"往哪个方向走一小步，下降最快"。</p>
+</blockquote>
+<p>在机器学习中：</p>
+<ul>
+<li><strong>山</strong> = 损失函数（我们要最小化它）</li>
+<li><strong>你的位置</strong> = 模型参数的当前值</li>
+<li><strong>梯度</strong> = 损失对每个参数的偏导数（告诉你如何调整参数才能降低损失）</li>
+</ul>
+<h4 id="32-pytorch">3.2 PyTorch 的自动求导</h4>
+<p>PyTorch 最强大的特性之一就是<strong>自动求导</strong>——你只需要定义前向计算，PyTorch 自动帮你算出所有梯度。</p>
+<pre class="highlight"><code class="language-python"># 创建一个需要计算梯度的参数
+w = torch.tensor(3.0, requires_grad=True)
+
+# 前向计算：y = w^2 + 2w
+y = w ** 2 + 2 * w
+
+# 反向传播：自动计算 dy/dw
+y.backward()
+
+# dy/dw = 2w + 2 = 2×3 + 2 = 8
+print(w.grad)   # tensor(8.)
+</code></pre>
+
+<p><strong>对于 MiniMind 这样有数千万参数的模型，PyTorch 能自动计算损失函数对每一个参数的梯度</strong>——这就是深度学习能够工作的基础。</p>
+<h4 id="33">3.3 为什么需要梯度？</h4>
+<p>训练模型的过程就是不断调整参数，使损失函数变小：</p>
+<pre class="highlight"><code>当前参数: w = 3.0
+梯度: dL/dw = 8.0
+学习率: lr = 0.01
+
+更新: w_new = w - lr × 梯度
+     w_new = 3.0 - 0.01 × 8.0 = 2.92
+
+重复这个过程几千次，w 就会逐渐趋近最优值。
+</code></pre>
+
+<h3 id="4-nnmodule">4. nn.Module：搭建神经网络的蓝图</h3>
+<h4 id="41-nnmodule">4.1 什么是 nn.Module？</h4>
+<p><code>nn.Module</code> 是 PyTorch 中<strong>所有神经网络层的基类</strong>。MiniMind 中的每一个组件——Attention、FFN、Block、整个模型——都继承自 <code>nn.Module</code>。</p>
+<pre class="highlight"><code class="language-python">import torch.nn as nn
+
+class SimpleLayer(nn.Module):
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.linear = nn.Linear(input_size, output_size)
+
+    def forward(self, x):
+        return self.linear(x)
+
+layer = SimpleLayer(768, 256)
+x = torch.randn(2, 768)     # 2 个样本，每个 768 维
+output = layer(x)            # 自动调用 forward 方法
+print(output.shape)          # torch.Size([2, 256])
+</code></pre>
+
+<p><strong>核心规则</strong>：</p>
+<ol>
+<li><code>__init__</code> 中定义层的<strong>结构</strong>（有哪些参数）</li>
+<li><code>forward</code> 中定义<strong>前向计算</strong>（数据怎么流过这些参数）</li>
+<li>调用时直接用 <code>layer(x)</code> 而不是 <code>layer.forward(x)</code></li>
+</ol>
+<h3 id="5">5. 关键网络层详解</h3>
+<h4 id="51-nnlinear">5.1 nn.Linear（全连接层 / 线性层）</h4>
+<p>$y = xW^T + b$</p>
+<p>全连接层是最基础的运算，本质就是矩阵乘法加偏置。</p>
+<pre class="highlight"><code class="language-python">linear = nn.Linear(768, 256)          # 输入 768 维，输出 256 维
+print(linear.weight.shape)            # torch.Size([256, 768])
+print(linear.bias.shape)              # torch.Size([256])
+
+x = torch.randn(4, 768)              # 4 个样本
+y = linear(x)                        # (4, 768) @ (768, 256)^T → (4, 256)
+print(y.shape)                        # torch.Size([4, 256])
+</code></pre>
+
+<p>MiniMind 中的使用场景：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>代码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q/K/V 投影</td>
+<td><code>self.q_proj = nn.Linear(hidden_size, num_heads * head_dim, bias=False)</code></td>
+</tr>
+<tr>
+<td>FFN 的 gate/up/down</td>
+<td><code>self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)</code></td>
+</tr>
+<tr>
+<td>输出层 lm_head</td>
+<td><code>self.lm_head = nn.Linear(hidden_size, vocab_size, bias=False)</code></td>
+</tr>
+</tbody>
+</table>
+<p>注意 MiniMind 中大多数 Linear 层的 <code>bias=False</code>，这是现代大模型的常见做法，可以减少参数量。</p>
+<h4 id="52-nnembedding">5.2 nn.Embedding（词嵌入层）</h4>
+<p>Embedding 把离散的 token ID 映射为连续的向量。</p>
+<pre class="highlight"><code class="language-python">embed = nn.Embedding(num_embeddings=6400, embedding_dim=768)
+# 6400 = 词表大小 (vocab_size)
+# 768  = 嵌入维度 (hidden_size / d_model)
+
+token_ids = torch.tensor([234, 567, 891])   # 3 个 token
+vectors = embed(token_ids)                   # (3, 768)
+print(vectors.shape)                         # torch.Size([3, 768])
+</code></pre>
+
+<blockquote>
+<p><strong>直觉</strong>：Embedding 就是一个大查找表（lookup table）。里面有 6400 行，每行 768 个数。给一个 token ID（比如 234），就返回第 234 行的那个 768 维向量。</p>
+</blockquote>
+<p>在 MiniMind 中：</p>
+<pre class="highlight"><code class="language-python">self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
+</code></pre>
+
+<p><strong>有趣的设计</strong>：MiniMind 的 <code>lm_head</code>（输出层）和 <code>embed_tokens</code> 共享权重——也就是说，输入的"查找表"和输出的"预测层"用的是同一个矩阵。这叫 <strong>Weight Tying（权重共享）</strong>，可以减少参数量并提升效果。</p>
+<h4 id="53-nncrossentropyloss">5.3 nn.CrossEntropyLoss（交叉熵损失函数）</h4>
+<p>这是语言模型训练的<strong>核心损失函数</strong>。</p>
+<blockquote>
+<p><strong>直觉</strong>：模型预测"今天天气"后面接什么词时，输出了一个概率分布。如果真实答案是"好"（概率 0.35），那损失函数会惩罚模型——"你应该给'好'更高的概率！"</p>
+</blockquote>
+<pre class="highlight"><code class="language-python">loss_fn = nn.CrossEntropyLoss()
+
+# 模型输出的 logits（未归一化的分数）
+logits = torch.tensor([[2.0, 1.0, 0.5, 0.1]])  # 4 个词的分数
+
+# 真实标签（正确答案是第 0 个词）
+target = torch.tensor([0])
+
+loss = loss_fn(logits, target)
+print(loss)   # tensor(0.4402) — 损失越小越好
+</code></pre>
+
+<h4 id="_4">交叉熵损失的数学公式</h4>
+<p>$$L = -\sum_{i=1}^{C} y_i \log(p_i) = -\log(p_{\text{correct}})$$</p>
+<p>因为 $y_i$ 是 one-hot 编码（只有正确类别为 1，其余为 0），所以简化为：对正确类别的预测概率取负对数。</p>
+<ul>
+<li>预测概率 = 0.9 → 损失 = -log(0.9) ≈ 0.11（预测得好，损失小）</li>
+<li>预测概率 = 0.1 → 损失 = -log(0.1) ≈ 2.30（预测得差，损失大）</li>
+</ul>
+<p>MiniMind 的训练中，模型对每个位置都预测下一个 token，所有位置的交叉熵损失取平均，就是最终的训练 loss。</p>
+<h3 id="6-adam-adamw">6. 优化器：Adam 和 AdamW</h3>
+<h4 id="61">6.1 什么是优化器？</h4>
+<p>优化器决定了<strong>如何利用梯度来更新参数</strong>。</p>
+<p>最简单的优化器是 <strong>SGD（随机梯度下降）</strong>：</p>
+<p>$$w_{\text{new}} = w_{\text{old}} - lr \times \text{gradient}$$</p>
+<p>但 SGD 有两个问题：<br />
+1. 对所有参数使用<strong>相同的学习率</strong><br />
+2. 在"山谷"（损失曲面的狭长区域）中震荡严重</p>
+<h4 id="62-adam">6.2 Adam 优化器</h4>
+<p><strong>Adam (Adaptive Moment Estimation)</strong> 是目前最流行的优化器，它为每个参数自适应调整学习率。</p>
+<p>核心思想：</p>
+<ul>
+<li>维护每个参数的<strong>一阶动量</strong>（梯度的指数移动平均 → 方向信息）</li>
+<li>维护每个参数的<strong>二阶动量</strong>（梯度平方的指数移动平均 → 步长信息）</li>
+<li>效果：在平坦的方向走大步，在陡峭的方向走小步</li>
+</ul>
+<blockquote>
+<p><strong>类比</strong>：SGD 就像一个新手滑雪者，只会直线冲下去；Adam 就像一个老手，会根据雪坡的坡度和弯度灵活调整速度和方向。</p>
+</blockquote>
+<h4 id="63-adamw-adam">6.3 AdamW：权重衰减版 Adam</h4>
+<p><strong>AdamW</strong> 在 Adam 的基础上加入了<strong>权重衰减（Weight Decay）</strong>——一种正则化技术，防止参数值过大。</p>
+<p>$$w_{\text{new}} = w_{\text{old}} - lr \times (\text{adam_update} + \lambda \times w_{\text{old}})$$</p>
+<p>其中 $\lambda$ 是权重衰减系数。直觉上：<strong>如果一个参数值很大但对损失没太大帮助，就把它往 0 拉一拉</strong>，防止过拟合。</p>
+<p>MiniMind 使用 AdamW：</p>
+<pre class="highlight"><code class="language-python">optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+</code></pre>
+
+<h4 id="adam-vs-sgd-vs-adamw">Adam vs SGD vs AdamW 对比</h4>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>SGD</th>
+<th>Adam</th>
+<th>AdamW</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自适应学习率</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>动量</td>
+<td>需手动加</td>
+<td>内置</td>
+<td>内置</td>
+</tr>
+<tr>
+<td>权重衰减</td>
+<td>可选</td>
+<td>内置（但实现有 bug）</td>
+<td>正确实现</td>
+</tr>
+<tr>
+<td>训练效果</td>
+<td>泛化好但慢</td>
+<td>收敛快</td>
+<td>收敛快 + 泛化好</td>
+</tr>
+<tr>
+<td>大模型常用</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅✅✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="7">7. 训练循环：完整流程</h3>
+<p>一次完整的训练包含以下 4 个步骤，不断循环：</p>
+<pre class="highlight"><code class="language-python">model = MyModel()
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+loss_fn = nn.CrossEntropyLoss()
+
+for epoch in range(num_epochs):
+    for input_ids, labels in dataloader:
+        # 第 1 步：前向传播 (Forward)
+        logits = model(input_ids)
+
+        # 第 2 步：计算损失 (Loss)
+        loss = loss_fn(logits.view(-1, vocab_size), labels.view(-1))
+
+        # 第 3 步：反向传播 (Backward)
+        loss.backward()
+
+        # 第 4 步：参数更新 (Step)
+        optimizer.step()
+        optimizer.zero_grad()   # 清零梯度，为下一步做准备
+</code></pre>
+
+<h4 id="_5">逐步解释</h4>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>做了什么</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Forward</strong></td>
+<td>数据流过模型，计算出预测结果</td>
+<td>考试答题</td>
+</tr>
+<tr>
+<td><strong>Loss</strong></td>
+<td>比较预测和正确答案的差距</td>
+<td>老师批改试卷</td>
+</tr>
+<tr>
+<td><strong>Backward</strong></td>
+<td>计算每个参数对损失的"贡献度"（梯度）</td>
+<td>分析哪些知识点没掌握好</td>
+</tr>
+<tr>
+<td><strong>Step</strong></td>
+<td>根据梯度调整参数</td>
+<td>针对薄弱环节重点复习</td>
+</tr>
+<tr>
+<td><strong>zero_grad</strong></td>
+<td>清除上一步的梯度</td>
+<td>清空上次的分析，准备下一次</td>
+</tr>
+</tbody>
+</table>
+<p>MiniMind 的训练循环（<code>trainer/train_pretrain.py</code>）还包含额外的技巧：</p>
+<pre class="highlight"><code class="language-python"># 混合精度训练（节省显存，加速计算）
+with autocast_ctx:
+    res = model(input_ids, labels=labels)
+    loss = res.loss + res.aux_loss
+    loss = loss / args.accumulation_steps
+
+# 缩放反向传播
+scaler.scale(loss).backward()
+
+# 梯度裁剪（防止梯度爆炸）
+scaler.unscale_(optimizer)
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+# 梯度累积
+scaler.step(optimizer)
+scaler.update()
+</code></pre>
+
+<h3 id="8">8. 实战：一个最简单的"下一个字符预测"</h3>
+<p>让我们用 PyTorch 写一个迷你版的语言模型，帮你把上面学到的所有概念串联起来。</p>
+<pre class="highlight"><code class="language-python">import torch
+import torch.nn as nn
+
+# === 1. 准备数据 ===
+text = &quot;hello world hello pytorch hello deep learning&quot;
+chars = sorted(set(text))            # 所有不重复的字符
+vocab_size = len(chars)               # 词表大小
+char_to_id = {c: i for i, c in enumerate(chars)}
+id_to_char = {i: c for i, c in enumerate(chars)}
+
+data = torch.tensor([char_to_id[c] for c in text])
+
+# === 2. 定义模型 ===
+class TinyLM(nn.Module):
+    def __init__(self, vocab_size, hidden_size=32):
+        super().__init__()
+        self.embed = nn.Embedding(vocab_size, hidden_size)
+        self.linear1 = nn.Linear(hidden_size, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, vocab_size)
+
+    def forward(self, x):
+        h = self.embed(x)               # token_id → 向量
+        h = torch.relu(self.linear1(h))  # 非线性变换
+        logits = self.linear2(h)         # 向量 → 词表大小的分数
+        return logits
+
+# === 3. 训练 ===
+model = TinyLM(vocab_size)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+loss_fn = nn.CrossEntropyLoss()
+
+for epoch in range(100):
+    inputs = data[:-1]     # &quot;hello world ... learnin&quot;
+    targets = data[1:]     # &quot;ello world ... learning&quot;
+
+    logits = model(inputs)
+    loss = loss_fn(logits, targets)
+
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+
+    if (epoch + 1) % 20 == 0:
+        print(f&quot;Epoch {epoch+1}, Loss: {loss.item():.4f}&quot;)
+
+# === 4. 生成 ===
+with torch.no_grad():
+    seed = char_to_id['h']
+    result = ['h']
+    current = torch.tensor([seed])
+
+    for _ in range(20):
+        logits = model(current)
+        probs = torch.softmax(logits, dim=-1)
+        next_id = torch.multinomial(probs, 1).item()
+        result.append(id_to_char[next_id])
+        current = torch.tensor([next_id])
+
+    print(&quot;生成结果:&quot;, ''.join(result))
+</code></pre>
+
+<p>这个迷你模型虽然简单（没有 Attention，只有两个全连接层），但它包含了大语言模型训练的<strong>所有核心要素</strong>：Embedding → 前向计算 → 损失函数 → 反向传播 → 参数更新 → 自回归生成。</p>
+<h3 id="9-gpu">9. GPU 训练基础</h3>
+<h4 id="91-gpu">9.1 为什么需要 GPU？</h4>
+<table>
+<thead>
+<tr>
+<th>硬件</th>
+<th>每秒浮点运算</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>~100 GFLOPS</td>
+<td>一个非常聪明的人</td>
+</tr>
+<tr>
+<td>GPU (RTX 4090)</td>
+<td>~83 TFLOPS</td>
+<td>一千个普通工人同时干活</td>
+</tr>
+</tbody>
+</table>
+<p>GPU 擅长<strong>大量重复的简单计算</strong>（如矩阵乘法），这恰好是深度学习的核心需求。</p>
+<h4 id="92-pytorch-gpu">9.2 PyTorch 中使用 GPU</h4>
+<pre class="highlight"><code class="language-python"># 检查是否有 GPU
+device = torch.device(&quot;cuda&quot; if torch.cuda.is_available() else &quot;cpu&quot;)
+print(f&quot;使用设备: {device}&quot;)
+
+# 把模型和数据移到 GPU
+model = model.to(device)
+input_ids = input_ids.to(device)
+labels = labels.to(device)
+
+# 之后的所有计算都在 GPU 上进行
+output = model(input_ids)
+</code></pre>
+
+<p>MiniMind 支持单卡训练，也支持多卡并行训练（DDP）。启动训练时：</p>
+<pre class="highlight"><code class="language-bash"># 单卡
+python trainer/train_pretrain.py
+
+# 多卡 (DDP)
+torchrun --nproc_per_node 2 trainer/train_pretrain.py
+</code></pre>
+
+<h4 id="93">9.3 混合精度训练</h4>
+<p>MiniMind 使用 <strong>AMP (Automatic Mixed Precision)</strong> 混合精度训练：</p>
+<ul>
+<li>部分运算用 FP16（半精度），速度更快、显存更省</li>
+<li>关键运算（如损失计算）保持 FP32（全精度），保证数值稳定</li>
+</ul>
+<pre class="highlight"><code class="language-python">scaler = torch.amp.GradScaler()
+with torch.autocast(device_type=args.device, dtype=torch.bfloat16):
+    output = model(input_ids, labels=labels)
+    loss = output.loss
+</code></pre>
+
+<hr />
+<h2 id="minimind">📂 对应 MiniMind 源码</h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>对应文件</th>
+<th>关键代码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>模型定义（nn.Module）</td>
+<td><code>model/model_minimind.py</code></td>
+<td>所有 class 都继承 <code>nn.Module</code>：<code>Attention</code>, <code>FeedForward</code>, <code>MiniMindBlock</code>, <code>MiniMindForCausalLM</code></td>
+</tr>
+<tr>
+<td>nn.Linear（全连接层）</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>self.q_proj</code>, <code>self.k_proj</code>, <code>self.v_proj</code>, <code>self.o_proj</code>, <code>self.gate_proj</code> 等</td>
+</tr>
+<tr>
+<td>nn.Embedding（词嵌入）</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)</code></td>
+</tr>
+<tr>
+<td>CrossEntropyLoss</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1))</code></td>
+</tr>
+<tr>
+<td>优化器 AdamW</td>
+<td><code>trainer/train_pretrain.py</code></td>
+<td><code>optimizer = optim.AdamW(model.parameters(), lr=...)</code></td>
+</tr>
+<tr>
+<td>训练循环</td>
+<td><code>trainer/train_pretrain.py</code></td>
+<td><code>train_epoch()</code> 函数 — forward → loss → backward → step</td>
+</tr>
+<tr>
+<td>混合精度训练</td>
+<td><code>trainer/train_pretrain.py</code></td>
+<td><code>scaler = GradScaler()</code> + <code>autocast</code> 上下文管理器</td>
+</tr>
+<tr>
+<td>GPU 设备管理</td>
+<td><code>trainer/train_pretrain.py</code></td>
+<td><code>model.to(device)</code>、<code>input_ids.to(device)</code></td>
+</tr>
+<tr>
+<td>梯度裁剪</td>
+<td><code>trainer/train_pretrain.py</code></td>
+<td><code>torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_6">🎤 面试考点</h2>
+<h3 id="q1-adam-sgd-adamw">Q1: Adam 和 SGD 的区别是什么？为什么大模型通常用 AdamW？</h3>
+<p><strong>答</strong>：<br />
+- <strong>SGD</strong> 对所有参数使用固定学习率，更新公式为 $w = w - lr \times g$。优点是实现简单、泛化性好；缺点是收敛慢、对学习率敏感、在损失曲面的"峡谷"中震荡。<br />
+- <strong>Adam</strong> 为每个参数自适应调整学习率，维护梯度的一阶动量（方向）和二阶动量（步长）。收敛速度远快于 SGD。<br />
+- <strong>AdamW</strong> 在 Adam 基础上修正了权重衰减（Weight Decay）的实现。原始 Adam 的 L2 正则化与自适应学习率耦合，效果不理想；AdamW 将权重衰减解耦，正则化效果更好。<br />
+- 大模型通常用 <strong>AdamW</strong> 的原因：(1) 参数量巨大，需要快速收敛；(2) 需要正确的权重衰减防止过拟合；(3) 经过大量实验验证效果最佳。</p>
+<h3 id="q2-crossentropy-loss">Q2: CrossEntropy Loss 的公式含义是什么？为什么语言模型用它？</h3>
+<p><strong>答</strong>：交叉熵损失公式为 $L = -\sum_{i} y_i \log(p_i)$，其中 $y_i$ 是真实标签的 one-hot 编码，$p_i$ 是模型的预测概率。对于语言模型，简化为 $L = -\log(p_{\text{correct}})$，即对正确 token 的预测概率取负对数。</p>
+<p>语言模型用它的原因：<br />
+1. 语言模型的任务是"预测下一个 token"，本质是多分类问题（从 vocab_size 个候选中选一个），交叉熵是多分类的标准损失函数；<br />
+2. 交叉熵等价于最小化模型预测分布与真实分布的 KL 散度，信息论意义明确；<br />
+3. 梯度性质好——当预测错误时梯度大，预测正确时梯度小，符合直觉。</p>
+<h3 id="q3-gradient-clipping">Q3: 为什么大模型训练需要梯度裁剪（Gradient Clipping）？</h3>
+<p><strong>答</strong>：深度神经网络在反向传播时，梯度可能会变得非常大（<strong>梯度爆炸</strong>），尤其在序列较长或网络较深时。梯度爆炸会导致参数更新量过大，使模型"跑飞"（损失突然暴增，训练崩溃）。</p>
+<p>梯度裁剪（<code>clip_grad_norm_</code>）会在梯度的 L2 范数超过阈值时，等比缩放所有梯度使其范数恰好等于阈值。MiniMind 中 <code>max_norm=1.0</code>，意味着如果所有梯度的总范数 &gt; 1，就按比例缩小。这保证了参数更新的步长有一个上界，训练更加稳定。</p>
+<h3 id="q4">Q4: 什么是混合精度训练？有什么好处？</h3>
+<p><strong>答</strong>：混合精度训练（AMP）在同一个训练过程中同时使用 FP16/BF16（半精度）和 FP32（全精度）。前向传播和大部分反向传播用半精度计算，关键操作（损失函数、参数更新等）用全精度。</p>
+<p>好处：(1) 半精度计算速度快约 2 倍（现代 GPU 有专用硬件）；(2) 显存占用减少约一半；(3) 配合 GradScaler 可以保持数值稳定性。MiniMind 使用 <code>torch.bfloat16</code>，BF16 的指数位与 FP32 相同，不容易溢出，比 FP16 更稳定。</p>
+<hr />
+<h2 id="_7">✅ 自测题</h2>
+<h3 id="1">题目 1（选择题）</h3>
+<p>以下哪个 PyTorch 操作执行的是矩阵乘法？</p>
+<p>A. <code>a * b</code><br />
+B. <code>a @ b</code><br />
+C. <code>a + b</code><br />
+D. <code>a ** b</code>  </p>
+<details>
+<summary>查看答案</summary>
+
+**B**。`@` 是 PyTorch 中的矩阵乘法运算符（等价于 `torch.matmul`）。`*` 是逐元素乘法，`+` 是逐元素加法，`**` 是逐元素求幂。
+
+</details>
+
+<h3 id="2">题目 2（选择题）</h3>
+<p>训练循环中 <code>optimizer.zero_grad()</code> 的作用是什么？</p>
+<p>A. 将模型参数清零<br />
+B. 将梯度清零，为下一次反向传播做准备<br />
+C. 清空 GPU 显存<br />
+D. 重置学习率  </p>
+<details>
+<summary>查看答案</summary>
+
+**B**。PyTorch 默认会**累积梯度**（每次 `backward()` 得到的梯度会加到已有梯度上）。所以每次参数更新后需要调用 `zero_grad()` 将梯度清零，否则下一步的梯度会和上一步的梯度混合。注意：梯度累积（Gradient Accumulation）技术就是故意不清零、累积多步梯度后再更新，用于模拟更大的 batch size。
+
+</details>
+
+<h3 id="3">题目 3（简答题）</h3>
+<p>请解释 <code>nn.Embedding(6400, 768)</code> 在 MiniMind 中的作用，以及它和 <code>nn.Linear</code> 有什么本质区别。</p>
+<details>
+<summary>查看答案</summary>
+
+**作用**：`nn.Embedding(6400, 768)` 创建了一个 6400×768 的查找表。输入一个 token ID（0~6399），它返回对应行的 768 维向量。这是将离散的 token 映射到连续向量空间的过程。
+
+**与 nn.Linear 的区别**：
+- `nn.Embedding` 的输入是**整数索引**，通过查表操作获取向量，等价于将 one-hot 编码与权重矩阵相乘，但更高效（不需要实际构造 one-hot 向量）；
+- `nn.Linear` 的输入是**连续向量**，通过矩阵乘法做线性变换；
+- 数学上，`Embedding(id)` 等价于 `Linear(one_hot(id))`，但实现上 Embedding 是直接查表，计算量为 O(d)，而构造 one-hot 后做矩阵乘法的计算量为 O(V×d)。
+
+</details>
+
+<hr />
+<h2 id="_8">🔮 下一节预告</h2>
+<p>PyTorch 工具箱准备好了，接下来我们将打开 MiniMind 的"引擎盖"——<strong>逐个文件、逐个模块</strong>地探索 MiniMind 项目的结构。你将学会如何 clone 项目、搭建环境、运行第一次推理。</p>
+<p>👉 <strong>L04 - MiniMind 项目导览：千里之行，始于配环境</strong></p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

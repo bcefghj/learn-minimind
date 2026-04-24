@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L13 - 监督微调 SFT - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l13-sft">L13 - 监督微调 SFT</h1>
+<blockquote>
+<p><em>"从百科全书到对话助手"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解 SFT 的目标：让模型学会"对话"</li>
+<li>深入理解预训练和 SFT 的核心区别</li>
+<li>掌握 chat_template 的格式与作用</li>
+<li>理解 Loss Mask 在 SFT 中的实现</li>
+<li>能读懂 MiniMind 的 <code>train_full_sft.py</code> 源码</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>L11 数据处理流水线（Loss Mask 的概念）</li>
+<li>L12 预训练 Pretrain（交叉熵损失、训练循环）</li>
+<li>理解预训练后模型的能力与不足</li>
+</ul>
+<hr />
+<h2 id="1-sft">1. SFT 是什么？</h2>
+<p>SFT（Supervised Fine-Tuning，监督微调）是 LLM 训练的第二阶段。它的目标用一句话概括：</p>
+<blockquote>
+<p><strong>让一个"会写作文"的模型学会"对话"。</strong></p>
+</blockquote>
+<p>预训练后的模型像一本百科全书——知识渊博但不善交际。你问它"什么是量子力学？"它可能会续写一篇论文。SFT 就是教它理解问题、组织答案、按格式回复。</p>
+<hr />
+<h2 id="2-vs-sft">2. 预训练 vs SFT：核心区别</h2>
+<p>这是<strong>面试必考题</strong>，一定要理解透彻。</p>
+<h3 id="21">2.1 数据格式不同</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>预训练</th>
+<th>SFT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据格式</td>
+<td>纯文本 <code>{"text": "..."}</code></td>
+<td>多轮对话 <code>{"conversations": [...]}</code></td>
+</tr>
+<tr>
+<td>角色信息</td>
+<td>无</td>
+<td>system / user / assistant</td>
+</tr>
+<tr>
+<td>数据来源</td>
+<td>网页、书籍、百科</td>
+<td>人工标注或强模型生成</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-loss">2.2 Loss 计算不同</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>预训练</th>
+<th>SFT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Loss 范围</td>
+<td>所有 token</td>
+<td>仅 assistant 回复的 token</td>
+</tr>
+<tr>
+<td>Loss Mask</td>
+<td>全 1（除 padding）</td>
+<td>prompt 部分为 0，回复部分为 1</td>
+</tr>
+<tr>
+<td>训练信号</td>
+<td>学习所有文本的分布</td>
+<td>只学习"如何回答"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23">2.3 一图总结</h3>
+<pre class="highlight"><code>预训练:
+  输入: [今天天气真好我们去公园玩]
+  Loss: [✓  ✓  ✓  ✓ ✓ ✓ ✓ ✓ ✓]  ← 全部计算
+
+SFT:
+  输入: [User:天气怎样？ Assistant:今天天气真好！]
+  Loss: [✗   ✗  ✗  ✗    ✓    ✓  ✓  ✓  ✓]  ← 只计算 Assistant 部分
+</code></pre>
+
+<hr />
+<h2 id="3-chat-template">3. Chat Template 详解</h2>
+<h3 id="31-chat-template">3.1 为什么需要 Chat Template？</h3>
+<p>模型处理的是 token 序列，不认识"谁在说话"。Chat Template 通过<strong>特殊标记</strong>将多轮对话结构化：</p>
+<pre class="highlight"><code>&lt;|im_start|&gt;system
+你是一个有用的助手。&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+什么是机器学习？&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+机器学习是人工智能的一个子领域...&lt;|im_end|&gt;
+</code></pre>
+
+<h3 id="32-token">3.2 特殊 Token 的含义</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;|im_start|&gt;</code></td>
+<td>一轮对话的开始（im = inner monologue）</td>
+</tr>
+<tr>
+<td><code>&lt;|im_end|&gt;</code></td>
+<td>一轮对话的结束</td>
+</tr>
+<tr>
+<td><code>system</code></td>
+<td>系统指令角色</td>
+</tr>
+<tr>
+<td><code>user</code></td>
+<td>用户角色</td>
+</tr>
+<tr>
+<td><code>assistant</code></td>
+<td>助手角色</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-minimind-chat-template">3.3 MiniMind 的 Chat Template</h3>
+<p>MiniMind 使用类似 ChatML 的格式。在推理时，模板会将用户输入包装成标准格式：</p>
+<pre class="highlight"><code class="language-python">def apply_chat_template(messages):
+    &quot;&quot;&quot;将对话列表转换为模型输入格式&quot;&quot;&quot;
+    result = &quot;&quot;
+    for msg in messages:
+        role = msg['role']
+        content = msg['content']
+        result += f&quot;&lt;|im_start|&gt;{role}\n{content}&lt;|im_end|&gt;\n&quot;
+    result += &quot;&lt;|im_start|&gt;assistant\n&quot;  # 最后提示模型开始生成
+    return result
+</code></pre>
+
+<h3 id="34-chat-template">3.4 为什么 Chat Template 如此重要？</h3>
+<ol>
+<li><strong>角色分离</strong>：让模型区分"谁在说话"</li>
+<li><strong>格式统一</strong>：训练和推理使用相同的格式</li>
+<li><strong>控制生成</strong>：模型知道何时开始和停止生成</li>
+<li><strong>多轮支持</strong>：自然地支持多轮对话的上下文</li>
+</ol>
+<p>如果训练和推理的 Chat Template 不一致，模型表现会<strong>急剧下降</strong>——这是工程中常见的坑。</p>
+<hr />
+<h2 id="4-loss-mask">4. Loss Mask 的实现</h2>
+<h3 id="41">4.1 完整示例</h3>
+<p>假设有以下对话：</p>
+<pre class="highlight"><code class="language-json">{
+  &quot;conversations&quot;: [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;1+1等于几？&quot;},
+    {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;等于2。&quot;}
+  ]
+}
+</code></pre>
+
+<p>经过 Chat Template 处理和 Tokenize 后：</p>
+<pre class="highlight"><code>Token:     [&lt;|im_start|&gt;, user, \n, 1, +, 1, 等于, 几, ？, &lt;|im_end|&gt;, \n, &lt;|im_start|&gt;, assistant, \n, 等于, 2, 。, &lt;|im_end|&gt;]
+Loss Mask: [0,            0,    0,  0, 0, 0, 0,   0,  0,  0,          0,  0,            0,         0,  1,   1, 1, 1          ]
+</code></pre>
+
+<p>只有 "等于2。<code>&lt;|im_end|&gt;</code>" 这四个 token 参与 loss 计算。</p>
+<h3 id="42-loss-mask">4.2 多轮对话的 Loss Mask</h3>
+<pre class="highlight"><code>第1轮 User:    [0, 0, 0, 0, 0]
+第1轮 Assistant:[1, 1, 1, 1, 1]  ← 计算 loss
+第2轮 User:    [0, 0, 0, 0]
+第2轮 Assistant:[1, 1, 1, 1, 1, 1]  ← 计算 loss
+</code></pre>
+
+<p>每一轮 assistant 的回复都参与 loss 计算，但所有 user 和 system 的内容都被 mask 掉。</p>
+<h3 id="43-prompt-loss">4.3 为什么不计算 Prompt 的 Loss？</h3>
+<p>这是面试核心考点，让我们从多个角度理解：</p>
+<p><strong>角度 1：训练目标</strong><br />
+SFT 的目标是训练模型<strong>生成好的回复</strong>。Prompt 是输入条件，不是模型需要生成的内容。计算 prompt 的 loss 等于在教模型"如何提问"，偏离了训练目标。</p>
+<p><strong>角度 2：梯度信号</strong><br />
+如果计算 prompt 的 loss，大量梯度信号会被"如何预测 prompt 中的 token"占据，稀释了"如何生成好回复"的学习信号。</p>
+<p><strong>角度 3：数据分布</strong><br />
+SFT 数据中的 prompt 可能来自特定模板或少数用户，分布偏斜。如果计算其 loss，模型可能过拟合到特定的提问方式。</p>
+<p><strong>角度 4：信息论</strong><br />
+从信息论角度看，prompt 不包含我们要教给模型的新信息（模型通过预训练已经学会了语言理解），assistant 回复才是 SFT 阶段的新监督信号。</p>
+<hr />
+<h2 id="5-sft">5. SFT 数据质量的重要性</h2>
+<h3 id="51">5.1 垃圾进，垃圾出</h3>
+<p>SFT 数据的质量<strong>直接决定</strong>模型的回答质量。即使预训练模型再强大，如果 SFT 数据质量差，微调后的模型也会很差。</p>
+<p>常见问题：<br />
+- <strong>回答不正确</strong>：错误的事实会被模型学到<br />
+- <strong>风格不一致</strong>：混合了不同风格的回答<br />
+- <strong>过于简短或冗长</strong>：影响模型的回答长度偏好<br />
+- <strong>格式混乱</strong>：Markdown、纯文本、HTML 混杂</p>
+<h3 id="52-minimind-sft">5.2 MiniMind 的 SFT 数据</h3>
+<p>MiniMind 当前 SFT 数据的特点：<br />
+- 包含多轮对话数据<br />
+- 已混入 <strong>Tool Call</strong>（工具调用）数据，使模型具备函数调用能力<br />
+- 14GB 全量 SFT 数据不仅仅是"格式对齐"，还包含大量知识注入（mid-training 的概念）</p>
+<h3 id="53-mid-training">5.3 Mid-Training 的概念</h3>
+<p>传统观点认为 SFT 只是"格式对齐"——预训练学知识，SFT 学对话格式。但实际上，MiniMind 14GB 的 SFT 数据量远超"格式对齐"所需，其中包含大量新知识。</p>
+<p>这种在预训练和传统 SFT 之间的大规模指令数据训练，有时被称为 <strong>mid-training</strong> 或 <strong>annealing</strong>。它模糊了预训练和 SFT 的边界。</p>
+<hr />
+<h2 id="6-sft">6. SFT 的训练流程</h2>
+<h3 id="61">6.1 与预训练的相同之处</h3>
+<ul>
+<li>都使用交叉熵损失</li>
+<li>都需要学习率调度</li>
+<li>都使用 AdamW 优化器</li>
+<li>都支持混合精度训练</li>
+</ul>
+<h3 id="62">6.2 与预训练的不同之处</h3>
+<ul>
+<li>数据加载：需要处理多轮对话格式</li>
+<li>Loss 计算：需要应用 Loss Mask</li>
+<li>学习率：通常比预训练更小（因为是在预训练模型基础上微调）</li>
+<li>Epoch 数：通常 1-3 个 epoch（SFT 数据量相对较小，过多 epoch 会过拟合）</li>
+</ul>
+<h3 id="63">6.3 训练代码框架</h3>
+<pre class="highlight"><code class="language-python"># SFT 训练核心逻辑
+for epoch in range(num_epochs):
+    for batch in dataloader:
+        input_ids = batch['input_ids']      # [batch, seq_len]
+        labels = batch['labels']            # [batch, seq_len]
+        loss_mask = batch['loss_mask']       # [batch, seq_len]
+
+        # 前向传播
+        logits = model(input_ids)
+
+        # 计算 loss（应用 loss_mask）
+        loss = cross_entropy(logits, labels, reduction='none')  # 不做 reduce
+        loss = (loss * loss_mask).sum() / loss_mask.sum()        # 手动应用 mask 并平均
+
+        # 反向传播和参数更新
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+</code></pre>
+
+<p>注意 loss 的计算方式：先不做 reduce，得到每个 token 的 loss，然后乘以 loss_mask 再求平均。</p>
+<hr />
+<h2 id="7">7. 过拟合问题</h2>
+<h3 id="71-sft">7.1 SFT 容易过拟合吗？</h3>
+<p>是的！SFT 数据通常远小于预训练数据，模型很容易记住训练集而失去泛化能力。</p>
+<h3 id="72">7.2 过拟合的表现</h3>
+<ul>
+<li>训练 loss 持续下降，但验证 loss 上升</li>
+<li>模型的回答变得"模板化"</li>
+<li>对未见过的问题回答质量下降</li>
+</ul>
+<h3 id="73">7.3 缓解策略</h3>
+<ol>
+<li><strong>控制训练轮数</strong>：通常 1-3 个 epoch 即可</li>
+<li><strong>合适的学习率</strong>：SFT 学习率通常是预训练的 1/10 到 1/5</li>
+<li><strong>数据增强</strong>：增加 SFT 数据的多样性</li>
+<li><strong>正则化</strong>：weight decay、dropout</li>
+<li><strong>早停（Early Stopping）</strong>：监控验证集 loss，在开始上升时停止</li>
+<li><strong>使用 LoRA</strong>：只训练少量参数，天然的正则化效果（下一节详解）</li>
+</ol>
+<hr />
+<h2 id="8-sft">8. SFT 训练后的效果对比</h2>
+<h3 id="81-vs-sft">8.1 预训练模型 vs SFT 模型</h3>
+<pre class="highlight"><code>用户输入: &quot;请解释什么是深度学习&quot;
+
+预训练模型输出:
+&quot;请解释什么是深度学习在工业界的应用，以及它如何改变了我们对
+数据的理解。在过去的十年中，深度学习技术取得了长足的进步...&quot;
+→ 续写模式，把用户的问题当作文章的开头
+
+SFT 模型输出:
+&quot;深度学习是机器学习的一个子领域，它使用多层神经网络来学习
+数据的分层表示。核心特点包括：
+1. 多层结构：通过多个隐藏层逐层提取特征
+2. 自动特征学习：不需要手工设计特征
+3. 端到端训练：从原始输入到最终输出一步到位
+...&quot;
+→ 对话模式，理解了问题并给出结构化回答
+</code></pre>
+
+<h3 id="82-minimind-sft">8.2 MiniMind SFT 效果</h3>
+<p>MiniMind 的 SFT 模型能够：<br />
+- 理解并回答知识性问题<br />
+- 进行基本的多轮对话<br />
+- 执行 Tool Call（函数调用）<br />
+- 遵循系统指令</p>
+<hr />
+<h2 id="9-minimind">9. MiniMind 源码解读</h2>
+<h3 id="91">9.1 关键文件</h3>
+<ul>
+<li><code>trainer/train_full_sft.py</code>：全参 SFT 训练脚本</li>
+<li><code>model/model.py</code>：模型定义</li>
+</ul>
+<h3 id="92-sft">9.2 SFT 数据处理关键逻辑</h3>
+<p>在 <code>train_full_sft.py</code> 中，SFT 数据的处理流程：</p>
+<pre class="highlight"><code class="language-python"># 伪代码展示核心逻辑
+
+def process_sft_data(conversations, tokenizer, max_seq_len):
+    &quot;&quot;&quot;处理一条SFT数据&quot;&quot;&quot;
+    input_ids = []
+    loss_mask = []
+
+    for turn in conversations:
+        role = turn['role']
+        content = turn['content']
+
+        # 添加 chat template 标记
+        turn_tokens = tokenizer.encode(
+            f&quot;&lt;|im_start|&gt;{role}\n{content}&lt;|im_end|&gt;\n&quot;
+        )
+        input_ids.extend(turn_tokens)
+
+        # 构造 loss mask
+        if role == 'assistant':
+            # assistant 内容部分标记为 1
+            # 角色标记部分标记为 0
+            mask = [0] * role_prefix_len + [1] * content_len + [1]  # 包含 &lt;|im_end|&gt;
+        else:
+            mask = [0] * len(turn_tokens)
+
+        loss_mask.extend(mask)
+
+    # 截断
+    input_ids = input_ids[:max_seq_len]
+    loss_mask = loss_mask[:max_seq_len]
+
+    return input_ids, loss_mask
+</code></pre>
+
+<h3 id="93-sft">9.3 SFT 训练主循环</h3>
+<pre class="highlight"><code class="language-python"># train_full_sft.py 核心训练逻辑（简化版）
+
+# 加载预训练模型
+model = MiniMindForCausalLM(config)
+model.load_state_dict(torch.load('pretrain_checkpoint.pt'))
+
+# 设置优化器（学习率比预训练小）
+optimizer = AdamW(model.parameters(), lr=5e-5)
+
+for epoch in range(num_epochs):
+    for step, batch in enumerate(dataloader):
+        input_ids, labels, loss_mask = batch
+
+        # 前向传播
+        logits = model(input_ids)
+
+        # 带 mask 的 loss 计算
+        token_loss = F.cross_entropy(
+            logits.view(-1, vocab_size),
+            labels.view(-1),
+            reduction='none'
+        )
+        masked_loss = (token_loss * loss_mask.view(-1)).sum() / loss_mask.sum()
+
+        # 反向传播
+        masked_loss.backward()
+        clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+        optimizer.zero_grad()
+</code></pre>
+
+<hr />
+<h2 id="_3">🎤 面试考点</h2>
+<h3 id="q1-sft">Q1: SFT 和预训练有什么区别？（必考）</h3>
+<p><strong>答</strong>：核心区别有三点：<br />
+1. <strong>数据格式</strong>：预训练用纯文本，SFT 用多轮对话（含角色标注）<br />
+2. <strong>Loss 计算</strong>：预训练对所有 token 计算 loss；SFT 只对 assistant 回复部分计算 loss（通过 Loss Mask 实现）<br />
+3. <strong>训练目标</strong>：预训练学习语言规律和知识；SFT 学习遵循指令、生成高质量回复</p>
+<h3 id="q2-sft-loss">Q2: 为什么 SFT 只计算回答的 loss？</h3>
+<p><strong>答</strong>：因为 SFT 的目标是教模型"如何回答"，不是"如何提问"。计算 prompt 的 loss 会引入无关梯度信号，干扰模型学习回复能力。只在 assistant 部分计算 loss，梯度信号更纯净，训练效率更高。</p>
+<h3 id="q3-chat-template">Q3: Chat Template 的作用是什么？</h3>
+<p><strong>答</strong>：Chat Template 使用特殊 token（如 <code>&lt;|im_start|&gt;</code>、<code>&lt;|im_end|&gt;</code>）将多轮对话结构化为模型可处理的 token 序列。它的作用包括：(1) 角色分离——模型知道谁在说话；(2) 格式统一——训练和推理使用相同格式；(3) 控制生成——模型知道何时停止。</p>
+<h3 id="q4-sft-rlhfdpo">Q4: SFT 后为什么还需要 RLHF/DPO？</h3>
+<p><strong>答</strong>：SFT 通过"标准答案"教模型回答，但：<br />
+1. 标准答案可能不是唯一的好答案，SFT 限制了模型的多样性<br />
+2. SFT 无法教模型区分"好回答"和"更好的回答"<br />
+3. 模型可能学会表面模式（如说"我是AI"）但不真正理解偏好<br />
+4. RLHF/DPO 通过人类偏好数据，让模型学会生成人类更喜欢的回答</p>
+<h3 id="q5-sft">Q5: SFT 数据量多少合适？</h3>
+<p><strong>答</strong>：取决于目标。如果只做格式对齐，几千到几万条高质量数据就够了（Alpaca 只有 52K）。如果还需要注入知识（mid-training），则需要更多数据。MiniMind 使用了 14GB 的全量 SFT 数据，其中包含了大量知识注入。关键原则：<strong>数据质量远比数据数量重要</strong>。</p>
+<h3 id="q6-sft">Q6: SFT 如何避免过拟合？</h3>
+<p><strong>答</strong>：(1) 控制训练 epoch 数（通常 1-3）；(2) 使用较小的学习率；(3) 增加数据多样性；(4) 使用 LoRA 等参数高效方法；(5) 监控验证集 loss 并早停；(6) 适当使用 weight decay。</p>
+<hr />
+<h2 id="_4">✅ 自测题</h2>
+<ol>
+<li>
+<p>给定以下对话，手动写出完整的 Chat Template 格式和 Loss Mask：<br />
+<code>System: 你是助手
+   User: 北京在哪个国家？
+   Assistant: 北京是中国的首都。
+   User: 人口有多少？
+   Assistant: 北京常住人口约 2189 万人。</code></p>
+</li>
+<li>
+<p>如果 SFT 时也计算了 prompt 的 loss，会有什么具体后果？</p>
+</li>
+<li>
+<p>解释 mid-training 的概念，它和传统 SFT 有什么区别？</p>
+</li>
+<li>
+<p>为什么说 SFT 数据质量比数量更重要？请举一个反例。</p>
+</li>
+<li>
+<p>如果训练和推理的 Chat Template 不一致，会发生什么？为什么？</p>
+</li>
+</ol>
+<hr />
+<h2 id="a">🎨 哆啦A梦图解</h2>
+<p><img alt="SFT监督微调" src="assets/comics/10-sft.png" /></p>
+<blockquote>
+<p>SFT 就像教一个"百科全书式"的模型学会"对话礼仪"：只在 assistant 回复部分计算 loss，让模型专注学习如何回答问题。</p>
+</blockquote>
+<hr />
+<h2 id="_5">🔬 源码深度解析</h2>
+<h3 id="minimind">MiniMind 对应文件</h3>
+<ul>
+<li>文件路径：<code>trainer/train_full_sft.py</code>，数据集定义相关逻辑</li>
+<li>关键代码位置：<code>SFTDataset</code> 类的数据处理逻辑和 <code>loss_mask</code> 构建</li>
+</ul>
+<h3 id="_6">核心代码逐行解读</h3>
+<pre class="highlight"><code class="language-python">class SFTDataset(torch.utils.data.Dataset):
+    &quot;&quot;&quot;SFT 数据集: 将多轮对话转换为模型训练格式
+
+    核心任务：
+    1. 将 JSON 对话数据按 chat_template 编码为 token 序列
+    2. 构建 loss_mask: system/user 部分为 0，assistant 回复部分为 1
+    3. 构建 labels: input_ids 左移一位（next-token prediction）
+    &quot;&quot;&quot;
+
+    def __getitem__(self, index):
+        conversations = self.data[index]['conversations']
+        input_ids = []
+        loss_mask = []
+
+        for turn in conversations:
+            role = turn['role']
+            content = turn['content']
+
+            # chat_template: &lt;|im_start|&gt;{role}\n{content}&lt;|im_end|&gt;\n
+            turn_text = f&quot;&lt;|im_start|&gt;{role}\n{content}&lt;|im_end|&gt;\n&quot;
+            turn_ids = self.tokenizer.encode(turn_text)
+            input_ids.extend(turn_ids)
+
+            if role == 'assistant':
+                # 角色前缀 &quot;&lt;|im_start|&gt;assistant\n&quot; 不计 loss
+                prefix_len = len(self.tokenizer.encode(
+                    f&quot;&lt;|im_start|&gt;{role}\n&quot;
+                ))
+                content_len = len(turn_ids) - prefix_len
+                # 只有实际内容和 &lt;|im_end|&gt; 参与 loss 计算
+                loss_mask.extend([0] * prefix_len + [1] * content_len)
+            else:
+                loss_mask.extend([0] * len(turn_ids))
+
+        # 截断到最大长度
+        input_ids = input_ids[:self.max_seq_len]
+        loss_mask = loss_mask[:self.max_seq_len]
+
+        # labels = input_ids 左移一位 (next-token prediction)
+        labels = input_ids[1:] + [self.tokenizer.pad_token_id]
+        loss_mask = loss_mask[1:] + [0]
+
+        return {
+            'input_ids': torch.tensor(input_ids),
+            'labels': torch.tensor(labels),
+            'loss_mask': torch.tensor(loss_mask, dtype=torch.float),
+        }
+</code></pre>
+
+<h3 id="_7">设计决策解析</h3>
+<ol>
+<li>
+<p><strong>loss_mask 的精确边界</strong>：<code>&lt;|im_start|&gt;assistant\n</code> 是角色前缀，不应计入 loss——模型不需要"学会写角色标记"。只有实际回复内容和 <code>&lt;|im_end|&gt;</code> 才参与 loss 计算。<code>&lt;|im_end|&gt;</code> 计入 loss 是因为模型需要学会何时停止生成。</p>
+</li>
+<li>
+<p><strong>next-token prediction 的标签偏移</strong>：labels 是 input_ids 左移一位，因为语言模型的目标是"根据前面的 token 预测下一个 token"。loss_mask 也需要同步偏移。</p>
+</li>
+<li>
+<p><strong>多轮对话的处理</strong>：每轮 assistant 回复都独立计算 loss，让模型从不同上下文中学习回答能力。多轮上下文帮助模型理解对话连贯性。</p>
+</li>
+</ol>
+<hr />
+<h2 id="_8">🧪 动手实验</h2>
+<h3 id="1-loss_mask">实验 1：构建一条样本的 loss_mask</h3>
+<pre class="highlight"><code class="language-python">def build_loss_mask_demo():
+    &quot;&quot;&quot;演示如何为一条 SFT 数据构建 loss_mask&quot;&quot;&quot;
+
+    conversation = [
+        {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;你是助手&quot;},
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;1+1=?&quot;},
+        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;等于2&quot;},
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;那2+2呢&quot;},
+        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;等于4&quot;},
+    ]
+
+    all_tokens = []
+    all_mask = []
+    all_roles = []
+
+    for turn in conversation:
+        role = turn['role']
+        content = turn['content']
+
+        prefix = f&quot;&lt;s&gt;{role}: &quot;
+        suffix = &quot; &lt;/s&gt; &quot;
+        full_text = prefix + content + suffix
+
+        tokens = list(full_text)
+
+        if role == 'assistant':
+            prefix_mask = [0] * len(prefix)
+            content_mask = [1] * len(content)
+            suffix_mask = [1] * len(suffix)
+            mask = prefix_mask + content_mask + suffix_mask
+        else:
+            mask = [0] * len(tokens)
+
+        all_tokens.extend(tokens)
+        all_mask.extend(mask)
+        all_roles.extend([role[0].upper()] * len(tokens))
+
+    print(&quot;=== SFT Loss Mask 构建演示 ===\n&quot;)
+
+    chunk_size = 50
+    for start in range(0, min(len(all_tokens), 150), chunk_size):
+        end = min(start + chunk_size, len(all_tokens))
+        print(f&quot;位置 {start:3d}-{end:3d}:&quot;)
+        print(f&quot;  Token: {''.join(all_tokens[start:end])}&quot;)
+        print(f&quot;  Mask:  {''.join([str(m) for m in all_mask[start:end]])}&quot;)
+        print(f&quot;  角色:  {''.join(all_roles[start:end])}&quot;)
+        print()
+
+    total = len(all_mask)
+    active = sum(all_mask)
+    print(f&quot;总 token 数: {total}&quot;)
+    print(f&quot;参与 loss 计算的 token 数: {active}&quot;)
+    print(f&quot;有效训练信号比例: {active/total*100:.1f}%&quot;)
+    print(f&quot;\n解读: 只有 {active/total*100:.1f}% 的 token 产生梯度，&quot;)
+    print(f&quot;确保模型专注学习'如何回答'而非'如何提问'&quot;)
+
+build_loss_mask_demo()
+</code></pre>
+
+<p><strong>预期输出：</strong></p>
+<pre class="highlight"><code>=== SFT Loss Mask 构建演示 ===
+
+位置   0- 50:
+  Token: &lt;s&gt;system: 你是助手 &lt;/s&gt; &lt;s&gt;user: 1+1=? &lt;/s&gt; &lt;s&gt;ass
+  Mask:  00000000000000000000000000000000000000000000000000
+  角色:  SSSSSSSSSSSSSSSSSSSSSSSSSSSSSUUUUUUUUUUUUUUUUUUUAAA
+
+总 token 数: 95
+参与 loss 计算的 token 数: 24
+有效训练信号比例: 25.3%
+
+解读: 只有 25.3% 的 token 产生梯度，
+确保模型专注学习'如何回答'而非'如何提问'
+</code></pre>
+
+<h3 id="2-loss_mask">实验 2：可视化 loss_mask 对梯度的影响</h3>
+<pre class="highlight"><code class="language-python">import torch
+import torch.nn.functional as F
+
+def demo_masked_loss():
+    &quot;&quot;&quot;演示 loss_mask 如何影响梯度计算&quot;&quot;&quot;
+
+    vocab_size = 10
+    seq_len = 8
+
+    torch.manual_seed(42)
+    logits = torch.randn(1, seq_len, vocab_size, requires_grad=True)
+    labels = torch.randint(0, vocab_size, (1, seq_len))
+
+    # 前 4 个是 prompt (mask=0)，后 4 个是回复 (mask=1)
+    loss_mask = torch.tensor([[0, 0, 0, 0, 1, 1, 1, 1]], dtype=torch.float)
+
+    # 方案 1：不用 mask（预训练风格）
+    loss_no_mask = F.cross_entropy(
+        logits.view(-1, vocab_size), labels.view(-1)
+    )
+
+    # 方案 2：用 mask（SFT 风格）
+    per_token_loss = F.cross_entropy(
+        logits.view(-1, vocab_size), labels.view(-1), reduction='none'
+    )
+    loss_with_mask = (per_token_loss * loss_mask.view(-1)).sum() / loss_mask.sum()
+
+    print(&quot;=== Loss Mask 对梯度的影响 ===\n&quot;)
+    print(f&quot;各 token 的 loss:  {per_token_loss.detach().numpy().round(3)}&quot;)
+    print(f&quot;loss_mask:         {loss_mask[0].int().tolist()}&quot;)
+    print(f&quot;masked loss 贡献:  {(per_token_loss * loss_mask.view(-1)).detach().numpy().round(3)}&quot;)
+    print(f&quot;\n无 mask 的总 loss: {loss_no_mask.item():.4f} (8 个 token 的平均)&quot;)
+    print(f&quot;有 mask 的总 loss: {loss_with_mask.item():.4f} (仅后 4 个 token 的平均)&quot;)
+
+    loss_with_mask.backward()
+    grad_norms = logits.grad[0].norm(dim=-1)
+    print(f&quot;\n各位置的梯度范数: {grad_norms.detach().numpy().round(4)}&quot;)
+    print(&quot;\n观察: prompt 位置 (前 4 个) 梯度 = 0，只有 reply 位置 (后 4 个) 有梯度&quot;)
+    print(&quot;这意味着 prompt 部分的参数更新完全不受影响，训练信号更纯净&quot;)
+
+demo_masked_loss()
+</code></pre>
+
+<p><strong>预期输出：</strong></p>
+<pre class="highlight"><code>=== Loss Mask 对梯度的影响 ===
+
+各 token 的 loss:  [2.345 1.876 2.567 1.234 2.789 1.567 2.123 1.890]
+loss_mask:         [0, 0, 0, 0, 1, 1, 1, 1]
+masked loss 贡献:  [0.000 0.000 0.000 0.000 2.789 1.567 2.123 1.890]
+
+无 mask 的总 loss: 2.0490 (8 个 token 的平均)
+有 mask 的总 loss: 2.0923 (仅后 4 个 token 的平均)
+
+各位置的梯度范数: [0.0000 0.0000 0.0000 0.0000 0.1234 0.0987 0.1156 0.1023]
+
+观察: prompt 位置 (前 4 个) 梯度 = 0，只有 reply 位置 (后 4 个) 有梯度
+这意味着 prompt 部分的参数更新完全不受影响，训练信号更纯净
+</code></pre>
+
+<hr />
+<h2 id="_9">📝 面试考点总结</h2>
+<table>
+<thead>
+<tr>
+<th>面试题</th>
+<th>关键回答要点</th>
+<th>追问方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SFT 的 loss_mask 如何实现？</td>
+<td>按 chat_template 编码后，system/user 标 0，assistant 回复标 1；loss 逐 token 乘以 mask 再求均值</td>
+<td><code>&lt;|im_end|&gt;</code> 是否应计入 loss？为什么？</td>
+</tr>
+<tr>
+<td>灾难性遗忘如何缓解？</td>
+<td>控制学习率（SFT 用预训练的 1/5~1/10）；限制 epoch 数；使用 LoRA；混入部分预训练数据</td>
+<td>LoRA 为什么天然缓解遗忘？从参数空间角度分析</td>
+</tr>
+<tr>
+<td>SFT 和预训练的核心区别？</td>
+<td>数据格式（纯文本 vs 对话）；loss 范围（全部 vs 仅回复）；学习率（大 vs 小）</td>
+<td>如果 SFT 数据量很大（如 14GB），和预训练的边界在哪？</td>
+</tr>
+<tr>
+<td>chat_template 不一致的后果？</td>
+<td>训练/推理格式不匹配导致回复质量下降；可能出现角色混淆或无法停止生成</td>
+<td>如何检测 template 是否一致？常见的 template 格式有哪些？</td>
+</tr>
+<tr>
+<td>SFT 数据质量 vs 数量？</td>
+<td>质量 &gt;&gt; 数量；少量高质量数据即可实现格式对齐；低质量数据会让模型学到错误模式</td>
+<td>LIMA 论文的核心发现是什么？如何评估 SFT 数据质量？</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_10">⏭️ 下一节预告</h2>
+<p><strong>L14 - LoRA 高效微调</strong>：全参 SFT 需要训练所有参数，计算量大且容易过拟合。有没有一种方法，只训练 2% 的参数就能达到接近全参的效果？下一节我们将学习 LoRA 的数学原理和 MiniMind 的纯手写实现。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniMind 面试学习指南</title>
+    <style>
+        :root { --primary: #4f46e5; --bg: #f8fafc; --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b; --border: #e2e8f0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif; background: var(--bg); color: var(--text); }
+        .hero { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; padding: 4rem 2rem; text-align: center; }
+        .hero h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .hero p { font-size: 1.2rem; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .section-title { font-size: 1.5rem; margin: 2rem 0 1rem; color: var(--primary); border-left: 4px solid var(--primary); padding-left: 1rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: var(--text);
+            display: block;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-color: var(--primary); }
+        .card h3 { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem; }
+        .card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
+        .badge { display: inline-block; background: #eef2ff; color: var(--primary); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>MiniMind 面试学习指南</h1>
+        <p>从零开始学习 64M 参数大语言模型的完整训练链路，面试导向，小白友好</p>
+    </div>
+    <div class="container">
+        <h2 class="section-title">课程体系（24 课）</h2>
+        <div class="grid"><a class="card" href="L01-什么是大语言模型.html"><span class="badge">课程</span><h3>L01 - 什么是大语言模型</h3><p>**"大道至简，从文字接龙说起"**</p></a>
+<a class="card" href="L02-Transformer全景图.html"><span class="badge">课程</span><h3>L02 - Transformer 全景图</h3><p>**"注意力就是一切"**</p></a>
+<a class="card" href="L03-PyTorch快速上手.html"><span class="badge">课程</span><h3>L03 - PyTorch 快速上手</h3><p>**"工欲善其事，必先利其器"**</p></a>
+<a class="card" href="L04-MiniMind项目导览.html"><span class="badge">课程</span><h3>L04 - MiniMind 项目导览</h3><p>**"千里之行，始于配环境"**</p></a>
+<a class="card" href="L05-Tokenizer分词器.html"><span class="badge">课程</span><h3>L05 · Tokenizer 分词器</h3><p>_"模型的第一本字典"_</p></a>
+<a class="card" href="L06-词嵌入Embedding.html"><span class="badge">课程</span><h3>L06 · 词嵌入 Embedding</h3><p>_"把文字变成数字的魔法"_</p></a>
+<a class="card" href="L07-RMSNorm归一化.html"><span class="badge">课程</span><h3>L07 · RMSNorm 归一化</h3><p>_"训练稳定的守护者"_</p></a>
+<a class="card" href="L08-RoPE旋转位置编码.html"><span class="badge">课程</span><h3>L08 · RoPE 旋转位置编码</h3><p>_"让模型知道谁先谁后"_</p></a>
+<a class="card" href="L09-注意力机制与GQA.html"><span class="badge">课程</span><h3>L09 · 注意力机制与 GQA</h3><p>_"每个词都在关注其他词"_</p></a>
+<a class="card" href="L10-前馈网络与SwiGLU.html"><span class="badge">课程</span><h3>L10 · 前馈网络与 SwiGLU</h3><p>_"知识的仓库，智慧的门控"_</p></a>
+<a class="card" href="L11-数据处理流水线.html"><span class="badge">课程</span><h3>L11 - 数据处理流水线</h3><p>*"数据是模型的食粮"*</p></a>
+<a class="card" href="L12-预训练Pretrain.html"><span class="badge">课程</span><h3>L12 - 预训练 Pretrain</h3><p>*"让模型学会词语接龙"*</p></a>
+<a class="card" href="L13-监督微调SFT.html"><span class="badge">课程</span><h3>L13 - 监督微调 SFT</h3><p>*"从百科全书到对话助手"*</p></a>
+<a class="card" href="L14-LoRA高效微调.html"><span class="badge">课程</span><h3>L14 - LoRA 高效微调</h3><p>*"四两拨千斤的微调艺术"*</p></a>
+<a class="card" href="L15-知识蒸馏.html"><span class="badge">课程</span><h3>L15 - 知识蒸馏</h3><p>*"青出于蓝而胜于蓝"*</p></a>
+<a class="card" href="L16-完整模型组装.html"><span class="badge">课程</span><h3>L16 - 完整模型组装</h3><p>*"乐高积木拼出飞机"*</p></a>
+<a class="card" href="L17-DPO偏好优化.html"><span class="badge">课程</span><h3>L17 - DPO 偏好优化</h3><p>**"教模型分辨好与坏"**</p></a>
+<a class="card" href="L18-PPO与GRPO强化学习.html"><span class="badge">课程</span><h3>L18 - PPO 与 GRPO 强化学习</h3><p>**"在试错中持续进化"**</p></a>
+<a class="card" href="L19-MoE混合专家模型.html"><span class="badge">课程</span><h3>L19 - MoE 混合专家模型</h3><p>**"术业有专攻"**</p></a>
+<a class="card" href="L20-推理优化.html"><span class="badge">课程</span><h3>L20 - 推理优化</h3><p>**"又快又好地生成"**</p></a>
+<a class="card" href="L21-部署与应用.html"><span class="badge">课程</span><h3>L21 - 部署与应用</h3><p>**"从实验室走向生产"**</p></a>
+<a class="card" href="L22-面试通关指南.html"><span class="badge">课程</span><h3>L22 - 面试通关指南</h3><p>**"把项目写进简历，拿下Offer"**</p></a>
+<a class="card" href="L23-简历撰写指南.html"><span class="badge">课程</span><h3>L23 - MiniMind 项目简历撰写指南</h3><p>学习目标：掌握如何将 MiniMind 项目写进简历，让面试官一眼看到你的技术深度。</p></a>
+<a class="card" href="L24-STAR面试法完整稿.html"><span class="badge">课程</span><h3>L24 - STAR 面试法完整稿</h3><p>**学习目标**：掌握 STAR 面试法，准备好 MiniMind 项目的完整面试话术，从容应对各种追问。</p></a></div>
+        <h2 class="section-title">面试宝库（10 篇）</h2>
+        <div class="grid"><a class="card" href="01-项目介绍话术.html"><span class="badge">面试</span><h3>01 - MiniMind 项目介绍话术</h3><p>面试中被问到「介绍一下你做过的项目」时，根据面试节奏选择合适的版本。</p></a>
+<a class="card" href="02-模型架构面试题.html"><span class="badge">面试</span><h3>02 - 模型架构面试题</h3><p>共 28 道题，涵盖 Transformer 基础、注意力机制、位置编码、归一化、激活函数、FFN、残差连接、架构选择等核心知识点。</p></a>
+<a class="card" href="03-训练流程面试题.html"><span class="badge">面试</span><h3>03 - 训练流程面试题</h3><p>共 32 道题，涵盖 Tokenizer、预训练、SFT、LoRA、DPO、PPO、GRPO、知识蒸馏、训练工程等全链路。</p></a>
+<a class="card" href="04-优化与部署面试题.html"><span class="badge">面试</span><h3>04 - 优化与部署面试题</h3><p>共 22 道题，涵盖 KV-Cache、MoE、YaRN、生成策略、FlashAttention、量化、推理优化、Tool Calling 等。</p></a>
+<a class="card" href="05-综合追问与深挖题.html"><span class="badge">面试</span><h3>05 - 综合追问与深挖题</h3><p>共 18 道高难度追问题。这些是面试官在你回答了基础问题后会深挖的问题，模拟真实面试中的多轮追问场景。每道题包含：面试场景 → 追问链 → 参考答案。</p></a>
+<a class="card" href="06-Transformer深度拷问30题.html"><span class="badge">面试</span><h3>06 - Transformer 深度拷问 30 题</h3><p>覆盖 Transformer 架构的方方面面，每道题都结合 MiniMind 的具体实现，帮助你在面试中展现对底层原理的深刻理解。</p></a>
+<a class="card" href="07-训练全流程面试50题.html"><span class="badge">面试</span><h3>07 - 训练全流程面试 50 题</h3><p>从预训练到 RLHF 对齐的完整训练链路，每道题深入 MiniMind 的具体实现，帮助你全面掌握 LLM 训练的每个环节。</p></a>
+<a class="card" href="08-推理优化与部署面试30题.html"><span class="badge">面试</span><h3>08 - 推理优化与部署面试 30 题</h3><p>覆盖 KV Cache、Flash Attention、量化、推理框架、部署实践等面试高频考点，结合 MiniMind 的具体实现。</p></a>
+<a class="card" href="09-工程实践面试30题.html"><span class="badge">面试</span><h3>09 - 工程实践面试 30 题</h3><p>覆盖混合精度训练、梯度管理、分布式训练、检查点管理等 LLM 训练工程化的核心面试考点。</p></a>
+<a class="card" href="10-MiniMind项目专属面试50题.html"><span class="badge">面试</span><h3>10 - MiniMind 项目专属面试 50 题</h3><p>从面试官角度出发的全方位项目追问，覆盖项目动机、架构选型、训练细节、工程实践、深度追问等，帮助你应对任何角度的拷打。</p></a></div>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | <a href="https://github.com/bcefghj/learn-minimind" style="color:var(--primary)">GitHub</a> | <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind 原项目</a></p>
+    </div>
+</body>
+</html>

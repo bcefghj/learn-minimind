@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L16 - 完整模型组装 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l16-">L16 - 完整模型组装</h1>
+<blockquote>
+<p><em>"乐高积木拼出飞机"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>回顾所有组件并理解它们的功能</li>
+<li>理解 Transformer Block 的组装方式</li>
+<li>掌握 MiniMindForCausalLM 的完整架构</li>
+<li><strong>学会计算模型参数量</strong>（面试必考）</li>
+<li>理解自回归生成（generate）的过程</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>Phase 2 所有组件课程（Embedding、Attention、FFN、RMSNorm 等）</li>
+<li>Phase 3 训练课程（L11-L15）</li>
+<li>基本的矩阵运算</li>
+</ul>
+<hr />
+<h2 id="1">1. 组件回顾</h2>
+<p>在开始组装之前，让我们快速回顾每个组件的功能：</p>
+<h3 id="11">1.1 组件清单</h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>功能</th>
+<th>输入 → 输出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Embedding</strong></td>
+<td>将 token ID 映射为向量</td>
+<td>[batch, seq_len] → [batch, seq_len, dim]</td>
+</tr>
+<tr>
+<td><strong>RMSNorm</strong></td>
+<td>归一化，稳定训练</td>
+<td>[batch, seq_len, dim] → [batch, seq_len, dim]</td>
+</tr>
+<tr>
+<td><strong>Attention (GQA)</strong></td>
+<td>捕获 token 间的关系</td>
+<td>[batch, seq_len, dim] → [batch, seq_len, dim]</td>
+</tr>
+<tr>
+<td><strong>FFN (SwiGLU)</strong></td>
+<td>非线性变换，存储知识</td>
+<td>[batch, seq_len, dim] → [batch, seq_len, dim]</td>
+</tr>
+<tr>
+<td><strong>残差连接</strong></td>
+<td>缓解梯度消失</td>
+<td>x + sublayer(x)</td>
+</tr>
+<tr>
+<td><strong>lm_head</strong></td>
+<td>将向量映射回词表空间</td>
+<td>[batch, seq_len, dim] → [batch, seq_len, vocab_size]</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-minimind">1.2 MiniMind 的核心超参数</h3>
+<table>
+<thead>
+<tr>
+<th>超参数</th>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dim</code></td>
+<td>768</td>
+<td>隐藏层维度</td>
+</tr>
+<tr>
+<td><code>n_layers</code></td>
+<td>8</td>
+<td>Transformer 层数</td>
+</tr>
+<tr>
+<td><code>n_heads</code></td>
+<td>16</td>
+<td>Query 注意力头数</td>
+</tr>
+<tr>
+<td><code>n_kv_heads</code></td>
+<td>8</td>
+<td>KV 注意力头数（GQA）</td>
+</tr>
+<tr>
+<td><code>vocab_size</code></td>
+<td>6400</td>
+<td>词表大小</td>
+</tr>
+<tr>
+<td><code>max_seq_len</code></td>
+<td>512</td>
+<td>最大序列长度</td>
+</tr>
+<tr>
+<td><code>intermediate_size</code></td>
+<td>2048</td>
+<td>FFN 中间维度</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-transformer-block">2. Transformer Block 的组装</h2>
+<h3 id="21-block">2.1 一个 Block 的结构</h3>
+<p>一个 Transformer Block 包含以下组件：</p>
+<pre class="highlight"><code>输入 x
+  │
+  ├──→ RMSNorm ──→ Attention ──→ +  ← 残差连接
+  │                               │
+  │←──────────────────────────────┘
+  │
+  ├──→ RMSNorm ──→ FFN ──→ +  ← 残差连接
+  │                         │
+  │←────────────────────────┘
+  │
+输出
+</code></pre>
+
+<h3 id="22-pre-norm">2.2 为什么是 Pre-Norm？</h3>
+<p>MiniMind 使用 <strong>Pre-Norm</strong>（归一化在子层之前），而不是原始 Transformer 的 Post-Norm：</p>
+<pre class="highlight"><code class="language-python"># Pre-Norm（MiniMind 使用）
+x = x + Attention(RMSNorm(x))
+x = x + FFN(RMSNorm(x))
+
+# Post-Norm（原始 Transformer）
+x = RMSNorm(x + Attention(x))
+x = RMSNorm(x + FFN(x))
+</code></pre>
+
+<p>Pre-Norm 的优势：<br />
+- 训练更稳定，不容易出现梯度消失/爆炸<br />
+- 不需要复杂的学习率 warmup 策略<br />
+- 几乎所有现代 LLM 都使用 Pre-Norm</p>
+<h3 id="23">2.3 代码实现</h3>
+<pre class="highlight"><code class="language-python">class TransformerBlock(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.attention = Attention(config)
+        self.feed_forward = FeedForward(config)
+        self.attention_norm = RMSNorm(config.dim)
+        self.ffn_norm = RMSNorm(config.dim)
+
+    def forward(self, x, freqs_cis, mask=None):
+        # Attention + 残差
+        h = x + self.attention(self.attention_norm(x), freqs_cis, mask)
+        # FFN + 残差
+        out = h + self.feed_forward(self.ffn_norm(h))
+        return out
+</code></pre>
+
+<hr />
+<h2 id="3">3. 完整模型架构</h2>
+<h3 id="31-minimindconfig">3.1 MiniMindConfig</h3>
+<p>配置类定义了模型的所有超参数：</p>
+<pre class="highlight"><code class="language-python">class MiniMindConfig:
+    dim: int = 768
+    n_layers: int = 8
+    n_heads: int = 16
+    n_kv_heads: int = 8
+    vocab_size: int = 6400
+    max_seq_len: int = 512
+    intermediate_size: int = 2048
+    norm_eps: float = 1e-5
+</code></pre>
+
+<h3 id="32-minimindmodel">3.2 MiniMindModel（骨干网络）</h3>
+<pre class="highlight"><code class="language-python">class MiniMindModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(config.vocab_size, config.dim)
+        self.layers = nn.ModuleList([
+            TransformerBlock(config) for _ in range(config.n_layers)
+        ])
+        self.norm = RMSNorm(config.dim)
+</code></pre>
+
+<h3 id="33-minimindforcausallm">3.3 MiniMindForCausalLM（完整模型）</h3>
+<pre class="highlight"><code class="language-python">class MiniMindForCausalLM(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.model = MiniMindModel(config)
+        self.lm_head = nn.Linear(config.dim, config.vocab_size, bias=False)
+
+        # 权重共享：lm_head 和 embed_tokens 共享权重
+        self.lm_head.weight = self.model.embed_tokens.weight
+
+    def forward(self, input_ids):
+        h = self.model(input_ids)    # [batch, seq, dim]
+        logits = self.lm_head(h)      # [batch, seq, vocab_size]
+        return logits
+</code></pre>
+
+<h3 id="34-weight-tying">3.4 权重共享（Weight Tying）</h3>
+<p>MiniMind 的 Embedding 层和 lm_head 层<strong>共享权重</strong>。即 <code>lm_head.weight = embed_tokens.weight</code>。</p>
+<p>为什么要共享？<br />
+1. <strong>减少参数量</strong>：省去一个 vocab_size × dim 的矩阵（约 5M 参数）<br />
+2. <strong>语义一致性</strong>：输入和输出使用相同的词向量空间<br />
+3. <strong>提升效果</strong>：实验表明权重共享通常能提升小模型的效果</p>
+<p>注意：权重共享后，Embedding 的参数和 lm_head 的参数是同一个张量。反向传播时，来自两端的梯度会<strong>累加</strong>到这个共享权重上。</p>
+<hr />
+<h2 id="4">4. 完整数据流</h2>
+<h3 id="41">4.1 数据流图</h3>
+<pre class="highlight"><code>input_ids: [batch_size, seq_len]
+    │
+    ▼
+┌─────────────┐
+│ embed_tokens │  vocab_size × dim = 6400 × 768
+└──────┬──────┘
+       │  [batch, seq, 768]
+       ▼
+┌──────────────────────┐
+│  Transformer Block 1 │
+│  ├─ RMSNorm          │
+│  ├─ Attention (GQA)  │
+│  ├─ Residual         │
+│  ├─ RMSNorm          │
+│  ├─ FFN (SwiGLU)     │
+│  └─ Residual         │
+└──────────┬───────────┘
+           │  [batch, seq, 768]
+           ▼
+       ... × 8 层 ...
+           │
+           ▼
+┌──────────────────────┐
+│  Transformer Block 8 │
+└──────────┬───────────┘
+           │  [batch, seq, 768]
+           ▼
+┌───────────┐
+│  RMSNorm  │  最终归一化
+└─────┬─────┘
+      │  [batch, seq, 768]
+      ▼
+┌──────────┐
+│  lm_head │  dim × vocab_size = 768 × 6400
+└────┬─────┘
+     │  [batch, seq, 6400]
+     ▼
+  logits → Softmax → 概率分布
+</code></pre>
+
+<h3 id="42">4.2 维度变化追踪</h3>
+<p>以 batch_size=2, seq_len=10 为例，追踪数据的维度变化：</p>
+<pre class="highlight"><code>输入 input_ids:                [2, 10]           (token IDs)
+经过 embed_tokens:             [2, 10, 768]       (词向量)
+经过 Block 1 的 RMSNorm:      [2, 10, 768]       (归一化)
+经过 Block 1 的 Attention:     [2, 10, 768]       (注意力输出)
+经过 Block 1 的残差连接:       [2, 10, 768]       (+ 原始输入)
+经过 Block 1 的 RMSNorm:      [2, 10, 768]       (归一化)
+经过 Block 1 的 FFN:           [2, 10, 768]       (FFN输出)
+经过 Block 1 的残差连接:       [2, 10, 768]       (+ 注意力输出)
+...经过 8 个 Block...
+经过最终 RMSNorm:              [2, 10, 768]       (最终归一化)
+经过 lm_head:                  [2, 10, 6400]      (logits)
+</code></pre>
+
+<p>注意：在所有 Transformer Block 中，数据的形状始终是 <code>[batch, seq, 768]</code>，<strong>维度不变</strong>。这是 Transformer 架构的一个优美特性。</p>
+<hr />
+<h2 id="5">5. 参数量计算</h2>
+<h3 id="51">5.1 逐组件拆解</h3>
+<p>这是<strong>面试必考题</strong>。让我们精确计算 MiniMind 的每个组件的参数量。</p>
+<p><strong>约定</strong>：dim=768, n_heads=16, n_kv_heads=8, vocab_size=6400, intermediate_size=2048, n_layers=8</p>
+<h4 id="embedding">Embedding 层</h4>
+<pre class="highlight"><code>embed_tokens: vocab_size × dim = 6400 × 768 = 4,915,200
+</code></pre>
+
+<h4 id="attention">每层 Attention</h4>
+<pre class="highlight"><code>head_dim = dim / n_heads = 768 / 16 = 48
+
+Q 投影: dim × (n_heads × head_dim) = 768 × 768 = 589,824
+K 投影: dim × (n_kv_heads × head_dim) = 768 × (8×48) = 768 × 384 = 294,912
+V 投影: dim × (n_kv_heads × head_dim) = 768 × 384 = 294,912
+O 投影: (n_heads × head_dim) × dim = 768 × 768 = 589,824
+
+Attention 总计: 589,824 + 294,912 + 294,912 + 589,824 = 1,769,472
+</code></pre>
+
+<h4 id="ffnswiglu">每层 FFN（SwiGLU）</h4>
+<p>SwiGLU 有三个投影矩阵：gate、up、down</p>
+<pre class="highlight"><code>gate: dim × intermediate_size = 768 × 2048 = 1,572,864
+up:   dim × intermediate_size = 768 × 2048 = 1,572,864
+down: intermediate_size × dim = 2048 × 768 = 1,572,864
+
+FFN 总计: 1,572,864 × 3 = 4,718,592
+</code></pre>
+
+<h4 id="rmsnorm">每层 RMSNorm</h4>
+<p>每个 Block 有 2 个 RMSNorm：</p>
+<pre class="highlight"><code>每个 RMSNorm: dim = 768 个参数（可学习的缩放因子 γ）
+每层 RMSNorm: 768 × 2 = 1,536
+</code></pre>
+
+<h4 id="rmsnorm_1">最终 RMSNorm</h4>
+<pre class="highlight"><code>最终 RMSNorm: 768
+</code></pre>
+
+<h4 id="lm_head">lm_head</h4>
+<pre class="highlight"><code>lm_head: dim × vocab_size = 768 × 6400 = 4,915,200
+但与 embed_tokens 共享权重，所以不额外计算！
+</code></pre>
+
+<h3 id="52">5.2 总参数量</h3>
+<pre class="highlight"><code>Embedding:           4,915,200
+8 层 Attention:      1,769,472 × 8 = 14,155,776
+8 层 FFN:            4,718,592 × 8 = 37,748,736
+8 层 RMSNorm:        1,536 × 8 = 12,288
+最终 RMSNorm:        768
+lm_head:             0（共享权重）
+─────────────────────────────────
+总计:                56,832,768 ≈ 56.8M
+</code></pre>
+
+<p>加上 RoPE 的频率缓存等非训练参数，MiniMind 声称的 <strong>64M</strong> 参数（不同配置略有差异）。</p>
+<h3 id="53">5.3 参数分布分析</h3>
+<pre class="highlight"><code>Attention: 14.16M (24.9%)  ← 约 1/4
+FFN:       37.75M (66.4%)  ← 约 2/3 ← 参数量大户！
+Embedding: 4.92M  (8.7%)
+其他:      0.01M  (0.0%)
+</code></pre>
+
+<p><strong>FFN 占了模型参数的约 2/3</strong>。这也是为什么有些轻量级优化主要针对 FFN（如 MoE 混合专家）。</p>
+<hr />
+<h2 id="6-generate">6. 自回归生成（Generate）</h2>
+<h3 id="61">6.1 基本原理</h3>
+<p>自回归生成就是<strong>逐个 token 生成</strong>：</p>
+<pre class="highlight"><code>输入: &quot;什么是&quot;
+步骤1: 模型(&quot;什么是&quot;) → 预测 &quot;机&quot;
+步骤2: 模型(&quot;什么是机&quot;) → 预测 &quot;器&quot;
+步骤3: 模型(&quot;什么是机器&quot;) → 预测 &quot;学&quot;
+步骤4: 模型(&quot;什么是机器学&quot;) → 预测 &quot;习&quot;
+步骤5: 模型(&quot;什么是机器学习&quot;) → 预测 &quot;？&quot;
+...
+直到生成 &lt;|im_end|&gt; 或达到最大长度
+</code></pre>
+
+<p>每一步，模型输出 vocab_size 维的 logits，通过某种策略选出下一个 token。</p>
+<h3 id="62">6.2 解码策略</h3>
+<h4 id="greedy-search">贪心搜索（Greedy Search）</h4>
+<p>每步选概率最高的 token：</p>
+<pre class="highlight"><code class="language-python">next_token = logits.argmax(dim=-1)
+</code></pre>
+
+<p>优点：简单、确定性。缺点：生成文本单调、缺乏多样性。</p>
+<h4 id="sampling">随机采样（Sampling）</h4>
+<p>按概率分布随机采样：</p>
+<pre class="highlight"><code class="language-python">probs = F.softmax(logits / temperature, dim=-1)
+next_token = torch.multinomial(probs, num_samples=1)
+</code></pre>
+
+<p>温度 temperature 控制多样性：<br />
+- temperature &lt; 1：分布更集中，生成更确定<br />
+- temperature &gt; 1：分布更均匀，生成更多样<br />
+- temperature = 0：退化为贪心搜索</p>
+<h4 id="top-k">Top-k 采样</h4>
+<p>只从概率最高的 k 个 token 中采样：</p>
+<pre class="highlight"><code class="language-python">topk_logits, topk_indices = logits.topk(k)
+topk_probs = F.softmax(topk_logits / temperature, dim=-1)
+next_token_idx = torch.multinomial(topk_probs, num_samples=1)
+next_token = topk_indices.gather(-1, next_token_idx)
+</code></pre>
+
+<p>k 值控制候选范围：k=1 就是贪心，k=vocab_size 就是全采样。</p>
+<h4 id="top-p-nucleus-sampling">Top-p 采样（Nucleus Sampling）</h4>
+<p>选择概率累积超过 p 的最小 token 集合：</p>
+<pre class="highlight"><code class="language-python">sorted_logits, sorted_indices = logits.sort(descending=True)
+sorted_probs = F.softmax(sorted_logits / temperature, dim=-1)
+cumulative_probs = sorted_probs.cumsum(dim=-1)
+
+# 找到累积概率超过 p 的位置
+mask = cumulative_probs - sorted_probs &gt; p
+sorted_logits[mask] = -float('inf')
+
+# 在剩余的 token 中采样
+probs = F.softmax(sorted_logits / temperature, dim=-1)
+next_token_idx = torch.multinomial(probs, num_samples=1)
+next_token = sorted_indices.gather(-1, next_token_idx)
+</code></pre>
+
+<p>Top-p 的优势：自适应候选集大小。当模型很确定时，候选集小；当模型不确定时，候选集大。</p>
+<h3 id="63">6.3 实际使用中的组合</h3>
+<p>实际使用时通常组合多种策略：</p>
+<pre class="highlight"><code class="language-python"># 典型配置
+temperature = 0.7
+top_k = 50
+top_p = 0.9
+repetition_penalty = 1.1
+</code></pre>
+
+<h3 id="64-minimind-generate">6.4 MiniMind 的 generate 方法</h3>
+<pre class="highlight"><code class="language-python">def generate(self, input_ids, max_new_tokens=100, temperature=0.7, top_p=0.9):
+    &quot;&quot;&quot;自回归生成&quot;&quot;&quot;
+    for _ in range(max_new_tokens):
+        # 前向传播，获取最后一个位置的 logits
+        logits = self.forward(input_ids)[:, -1, :]  # [batch, vocab_size]
+
+        # 温度缩放
+        logits = logits / temperature
+
+        # Top-p 采样
+        next_token = top_p_sample(logits, p=top_p)
+
+        # 拼接到输入序列
+        input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
+
+        # 遇到结束符则停止
+        if next_token.item() == eos_token_id:
+            break
+
+    return input_ids
+</code></pre>
+
+<hr />
+<h2 id="7-minimind">7. MiniMind 源码解读</h2>
+<h3 id="71">7.1 关键文件</h3>
+<ul>
+<li><code>model/model.py</code>：模型定义，包含 MiniMindModel、MiniMindForCausalLM</li>
+<li><code>model/model_lora.py</code>：LoRA 版本的模型</li>
+</ul>
+<h3 id="72-minimindmodel">7.2 MiniMindModel 类</h3>
+<p>这是模型的骨干网络，包含 Embedding、所有 Transformer Block 和最终的 RMSNorm：</p>
+<pre class="highlight"><code class="language-python">class MiniMindModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(config.vocab_size, config.dim)
+        self.layers = nn.ModuleList([
+            TransformerBlock(config) for _ in range(config.n_layers)
+        ])
+        self.norm = RMSNorm(config.dim, eps=config.norm_eps)
+        # 预计算 RoPE 频率
+        self.freqs_cis = precompute_freqs_cis(...)
+
+    def forward(self, input_ids, start_pos=0):
+        h = self.embed_tokens(input_ids)
+
+        # 获取 RoPE 频率
+        freqs_cis = self.freqs_cis[start_pos:start_pos + seq_len]
+
+        # 通过所有 Transformer Block
+        for layer in self.layers:
+            h = layer(h, freqs_cis)
+
+        # 最终归一化
+        h = self.norm(h)
+        return h
+</code></pre>
+
+<h3 id="73-minimindforcausallm">7.3 MiniMindForCausalLM 类</h3>
+<p>这是完整的因果语言模型，在骨干网络之上加了 lm_head：</p>
+<pre class="highlight"><code class="language-python">class MiniMindForCausalLM(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.model = MiniMindModel(config)
+        self.lm_head = nn.Linear(config.dim, config.vocab_size, bias=False)
+
+        # 权重共享
+        self.lm_head.weight = self.model.embed_tokens.weight
+
+    def forward(self, input_ids, labels=None):
+        h = self.model(input_ids)
+        logits = self.lm_head(h)
+
+        loss = None
+        if labels is not None:
+            loss = F.cross_entropy(
+                logits[..., :-1, :].reshape(-1, self.config.vocab_size),
+                labels[..., 1:].reshape(-1),
+                ignore_index=-100
+            )
+        return logits, loss
+</code></pre>
+
+<hr />
+<h2 id="8">8. 从零到完成的训练全景</h2>
+<p>回顾整个 Phase 3，MiniMind 的完整训练流程如下：</p>
+<pre class="highlight"><code>第1步：准备数据
+  pretrain_t2t_mini.jsonl → DataLoader → 预训练数据
+  sft_t2t_mini.jsonl → DataLoader → SFT 数据
+
+第2步：预训练（L12）
+  随机初始化模型 → Next Token Prediction → 学会语言规律
+  产出：pretrain_model.pt
+
+第3步：监督微调 SFT（L13）
+  加载预训练模型 → 多轮对话训练（带 Loss Mask） → 学会对话
+  产出：sft_model.pt
+
+第4步（可选）：LoRA 微调（L14）
+  加载 SFT 模型 → 冻结原始权重 + LoRA 旁路 → 领域适配
+  产出：lora_adapter.pt → 合并后 merged_model.pt
+
+第5步（可选）：知识蒸馏（L15）
+  大模型（教师） → 指导小模型（学生）训练
+  产出：distilled_model.pt
+
+第6步（可选）：DPO 偏好对齐
+  加载 SFT 模型 → 对比学习（chosen vs rejected） → 偏好对齐
+  产出：dpo_model.pt
+
+最终：模型推理
+  加载最终模型 → generate → 对话输出
+</code></pre>
+
+<hr />
+<h2 id="_3">🎤 面试考点</h2>
+<h3 id="q1">Q1: 如何计算模型参数量？（必考）</h3>
+<p><strong>答</strong>：逐组件计算：<br />
+1. <strong>Embedding</strong>: vocab_size × dim<br />
+2. <strong>每层 Attention</strong>: (dim × dim) + 2 × (dim × kv_dim) + (dim × dim)，其中 kv_dim = n_kv_heads × head_dim<br />
+3. <strong>每层 FFN (SwiGLU)</strong>: 3 × (dim × intermediate_size)<br />
+4. <strong>每层 RMSNorm</strong>: 2 × dim<br />
+5. <strong>最终 RMSNorm</strong>: dim<br />
+6. <strong>lm_head</strong>: 如果与 Embedding 共享权重则不额外计算</p>
+<p>总参数 = Embedding + n_layers × (Attention + FFN + RMSNorm) + 最终 RMSNorm。MiniMind 约 56.8M 参数。</p>
+<h3 id="q2">Q2: 数据在模型中的完整流动路径是什么？</h3>
+<p><strong>答</strong>：<br />
+input_ids → Embedding（token ID 变向量）→ 8 层 Transformer Block（每层：RMSNorm → Attention → 残差 → RMSNorm → FFN → 残差）→ 最终 RMSNorm → lm_head（向量变 logits）→ Softmax → 概率分布。整个过程中隐藏维度始终为 768，只有最后 lm_head 将维度从 768 映射到 vocab_size=6400。</p>
+<h3 id="q3">Q3: 自回归生成的过程？</h3>
+<p><strong>答</strong>：自回归生成是逐个 token 生成的过程。每一步将当前所有 token 送入模型，取最后一个位置的 logits，通过解码策略（贪心、Top-k、Top-p）选出下一个 token，拼接到序列末尾。重复这个过程直到生成结束符或达到最大长度。每次只生成一个 token，因此生成速度与序列长度成正比。</p>
+<h3 id="q4">Q4: 什么是权重共享？有什么好处？</h3>
+<p><strong>答</strong>：权重共享是指 Embedding 层和 lm_head 层使用同一个权重矩阵。好处：(1) 减少参数量（对 MiniMind 节省约 5M 参数）；(2) 输入和输出在同一个语义空间中，语义一致性更好；(3) 实验表明对小模型效果有提升。</p>
+<h3 id="q5-ffn">Q5: 为什么 FFN 占了模型参数的大部分？</h3>
+<p><strong>答</strong>：FFN 有 3 个投影矩阵（SwiGLU 架构），每个是 dim × intermediate_size。而 intermediate_size 通常是 dim 的 2-4 倍（MiniMind 中是 2048 / 768 ≈ 2.67 倍）。因此每层 FFN 的参数量约为 3 × dim × intermediate_size，远大于 Attention 的参数量。FFN 被认为是模型存储"知识"的主要组件。</p>
+<h3 id="q6-top-k-top-p">Q6: Top-k 和 Top-p 采样有什么区别？</h3>
+<p><strong>答</strong>：<br />
+- <strong>Top-k</strong>：固定候选集大小为 k。无论模型多确定或不确定，都只从前 k 个 token 中采样。<br />
+- <strong>Top-p（Nucleus）</strong>：自适应候选集大小。选择概率累积超过 p 的最小 token 集合。模型确定时候选少，不确定时候选多。<br />
+- Top-p 通常更灵活，是目前主流选择。实际使用中常组合使用。</p>
+<hr />
+<h2 id="_4">✅ 自测题</h2>
+<ol>
+<li>
+<p>不看参考，手动计算 MiniMind 各组件的参数量。最终结果应约为 56-64M。</p>
+</li>
+<li>
+<p>画出完整的数据流图，标注每个位置的张量维度（假设 batch=1, seq_len=20）。</p>
+</li>
+<li>
+<p>实现一个简化版的 <code>generate</code> 函数，支持贪心搜索和 Top-p 采样。</p>
+</li>
+<li>
+<p>如果把 n_layers 从 8 增加到 16，参数量会变成多少？</p>
+</li>
+<li>
+<p>如果不使用权重共享，参数量会增加多少？</p>
+</li>
+<li>
+<p>回顾 L11-L16，用自己的话描述 MiniMind 从数据准备到模型推理的完整流程。</p>
+</li>
+</ol>
+<hr />
+<h2 id="phase-3">🎉 Phase 3 总结</h2>
+<p>恭喜你完成了 Phase 3：训练全流程！让我们回顾你掌握的技能：</p>
+<table>
+<thead>
+<tr>
+<th>课程</th>
+<th>核心知识</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L11 数据处理</td>
+<td>数据格式、Loss Mask、梯度累积</td>
+</tr>
+<tr>
+<td>L12 预训练</td>
+<td>Next Token Prediction、交叉熵、学习率调度、AMP</td>
+</tr>
+<tr>
+<td>L13 SFT</td>
+<td>Chat Template、Loss Mask 实现、SFT vs 预训练</td>
+</tr>
+<tr>
+<td>L14 LoRA</td>
+<td>低秩分解、参数高效微调、权重合并</td>
+</tr>
+<tr>
+<td>L15 知识蒸馏</td>
+<td>黑盒/白盒蒸馏、温度、KL 散度</td>
+</tr>
+<tr>
+<td>L16 模型组装</td>
+<td>完整架构、参数量计算、自回归生成</td>
+</tr>
+</tbody>
+</table>
+<p>你现在已经具备了从零理解一个 LLM 项目的全部知识。回到 MiniMind 的代码，你应该能读懂每一行。</p>
+<blockquote>
+<p><em>"纸上得来终觉浅，绝知此事要躬行。"</em></p>
+</blockquote>
+<p>建议接下来：亲手跑一遍 MiniMind 的训练流程，从预训练到 SFT 到推理，把理论变成实践。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

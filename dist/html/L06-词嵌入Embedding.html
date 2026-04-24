@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L06 · 词嵌入 Embedding - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l06-embedding">L06 · 词嵌入 Embedding</h1>
+<blockquote>
+<p><em>"把文字变成数字的魔法"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📋 本节目标</h2>
+<p>学完本节，你将能够：</p>
+<ol>
+<li>理解从 One-Hot 到 Dense Embedding 的演进过程</li>
+<li>掌握 <code>nn.Embedding</code> 的本质——查表操作</li>
+<li>理解嵌入维度 d_model=768 的含义</li>
+<li>掌握权重共享（Weight Tying）的原理和好处</li>
+<li>计算 Embedding 层的参数量</li>
+</ol>
+<hr />
+<h2 id="_2">🔗 前置知识</h2>
+<ul>
+<li><a href="L05-Tokenizer分词器.md">L05 · Tokenizer 分词器</a>——知道 token id 是什么</li>
+<li>线性代数基础：向量、矩阵、矩阵乘法</li>
+<li>PyTorch 基础：<code>nn.Module</code>、<code>nn.Linear</code></li>
+</ul>
+<hr />
+<h2 id="1-embedding">1. 从文字到向量：为什么需要 Embedding？</h2>
+<h3 id="11">1.1 问题：模型不认识整数</h3>
+<p>上一节我们用 Tokenizer 把文字变成了整数序列：</p>
+<pre class="highlight"><code>&quot;今天天气真好&quot; → [356, 1892, 478, 23]
+</code></pre>
+
+<p>但这些整数对模型来说<strong>毫无意义</strong>。数字 356 并不比 357 更接近"今"的含义。我们需要一种方式，让每个 token 变成一个<strong>有意义的向量</strong>，使得语义相似的词在向量空间中距离更近。</p>
+<h3 id="12">1.2 一个类比</h3>
+<p>想象你是一个图书管理员。每本书都有一个编号（ISBN），但编号本身不告诉你这本书讲什么。你需要一个系统，给每本书贴上多个维度的标签：</p>
+<ul>
+<li>科幻程度：0.8</li>
+<li>浪漫程度：0.2</li>
+<li>知识密度：0.9</li>
+<li>阅读难度：0.7</li>
+<li>...（768 个维度）</li>
+</ul>
+<p>这样，《三体》和《银河帝国》的标签就会很相似，而《三体》和《红楼梦》的标签就很不同。</p>
+<p><strong>Embedding 就是给每个 token 贴上一组"多维标签"的过程。</strong></p>
+<hr />
+<h2 id="2-one-hot">2. One-Hot：最朴素的方案</h2>
+<h3 id="21-one-hot">2.1 什么是 One-Hot 编码？</h3>
+<p>最简单的想法：用一个长度为 vocab_size 的向量来表示每个 token，对应位置为 1，其余全为 0。</p>
+<pre class="highlight"><code>词表：[&quot;猫&quot;, &quot;狗&quot;, &quot;鸟&quot;, &quot;鱼&quot;]  (vocab_size=4)
+
+&quot;猫&quot; → [1, 0, 0, 0]
+&quot;狗&quot; → [0, 1, 0, 0]
+&quot;鸟&quot; → [0, 0, 1, 0]
+&quot;鱼&quot; → [0, 0, 0, 1]
+</code></pre>
+
+<h3 id="22-one-hot">2.2 One-Hot 的致命缺陷</h3>
+<ol>
+<li>
+<p><strong>维度灾难</strong>：MiniMind 的 vocab_size=6400，每个 token 就是一个 6400 维的向量。Qwen2 的 vocab_size=151,643 就更夸张了。</p>
+</li>
+<li>
+<p><strong>无法表达语义</strong>：任意两个 One-Hot 向量的内积都是 0（正交），"猫"和"狗"的距离与"猫"和"数学"的距离完全一样。</p>
+</li>
+</ol>
+<p>$$<br />
+\text{cos_sim}(\text{"猫"}, \text{"狗"}) = \text{cos_sim}(\text{"猫"}, \text{"数学"}) = 0<br />
+$$</p>
+<ol>
+<li><strong>极度稀疏</strong>：6400 维的向量里只有 1 个位置非零，99.98% 的数据是 0，浪费计算和存储。</li>
+</ol>
+<hr />
+<h2 id="3-dense-embedding">3. Dense Embedding：稠密向量的魔法</h2>
+<h3 id="31">3.1 核心思想</h3>
+<p>与其用稀疏的 One-Hot，不如用一个<strong>较短但稠密</strong>的向量来表示每个 token：</p>
+<pre class="highlight"><code>词表大小: 6400
+嵌入维度: 768
+
+&quot;猫&quot; → [0.23, -0.45, 0.12, ..., 0.67]  (768维)
+&quot;狗&quot; → [0.21, -0.41, 0.15, ..., 0.63]  (768维)  ← 和&quot;猫&quot;很接近！
+&quot;数学&quot;→ [-0.55, 0.32, 0.89, ..., -0.11] (768维) ← 和&quot;猫&quot;很远
+</code></pre>
+
+<h3 id="32">3.2 数学描述</h3>
+<p>本质上，Embedding 就是一个矩阵乘法：</p>
+<p>$$<br />
+\mathbf{e} = \text{one_hot}(x) \cdot \mathbf{W}_E<br />
+$$</p>
+<p>其中：<br />
+- (x) 是 token id（整数）<br />
+- (\text{one_hot}(x)) 是 (1 \times V) 的 One-Hot 向量（(V) = vocab_size）<br />
+- (\mathbf{W}_E) 是 (V \times d) 的嵌入矩阵（(d) = d_model）<br />
+- (\mathbf{e}) 是 (1 \times d) 的嵌入向量</p>
+<p>但因为 One-Hot 向量只有一个位置是 1，所以这个矩阵乘法<strong>等价于从矩阵中取出第 (x) 行</strong>——这就是"查表"操作。</p>
+<h3 id="33-vs">3.3 查表 vs 矩阵乘法</h3>
+<pre class="highlight"><code class="language-python">import torch
+import torch.nn as nn
+
+V, d = 6400, 768
+W = nn.Embedding(V, d)
+
+# 方法1：查表（实际实现）
+token_id = 356
+embedding = W(torch.tensor(token_id))  # 直接取第356行
+
+# 方法2：矩阵乘法（数学等价，但更慢）
+one_hot = torch.zeros(V)
+one_hot[356] = 1.0
+embedding_v2 = one_hot @ W.weight  # 矩阵乘法
+
+# embedding ≈ embedding_v2（结果相同）
+</code></pre>
+
+<p><strong>实际实现中，<code>nn.Embedding</code> 用的是查表，不是矩阵乘法——因为查表快得多！</strong></p>
+<hr />
+<h2 id="4-nnembedding">4. nn.Embedding 详解</h2>
+<h3 id="41-api">4.1 API 说明</h3>
+<pre class="highlight"><code class="language-python">nn.Embedding(num_embeddings, embedding_dim)
+</code></pre>
+
+<ul>
+<li><code>num_embeddings</code>：词表大小（有多少行，即多少个 token）</li>
+<li><code>embedding_dim</code>：嵌入维度（每行有多少列）</li>
+</ul>
+<h3 id="42">4.2 嵌入矩阵的形状</h3>
+<p>对于 MiniMind：</p>
+<pre class="highlight"><code>nn.Embedding(6400, 768)
+
+嵌入矩阵 W_E 的形状: (6400, 768)
+  → 6400 行：每个 token 一行
+  → 768 列：每个 token 用 768 维向量表示
+</code></pre>
+
+<p>可以这样理解：这个矩阵是一本"字典"，有 6400 个词条，每个词条用 768 个数字描述。</p>
+<h3 id="43">4.3 输入输出示意</h3>
+<pre class="highlight"><code class="language-python"># 输入：一批 token id
+input_ids = torch.tensor([[356, 1892, 478, 23]])  # shape: (1, 4)
+
+# 通过 Embedding 层
+embed = nn.Embedding(6400, 768)
+output = embed(input_ids)  # shape: (1, 4, 768)
+
+# 每个 token id 变成了一个 768 维向量
+</code></pre>
+
+<pre class="highlight"><code>输入 shape:  (batch_size, seq_len)           = (1, 4)
+输出 shape:  (batch_size, seq_len, d_model)  = (1, 4, 768)
+</code></pre>
+
+<h3 id="44">4.4 参数量计算</h3>
+<p>$$<br />
+\text{Embedding 参数量} = \text{vocab_size} \times \text{d_model} = 6400 \times 768 = 4,915,200 \approx 5M<br />
+$$</p>
+<p>对于 MiniMind 的 64M 总参数来说，Embedding 占了约 <strong>7.7%</strong>。如果用 Qwen2 的词表（151,643），参数量将是：</p>
+<p>$$<br />
+151,643 \times 768 = 116,461,824 \approx 116M<br />
+$$</p>
+<p>这已经<strong>超过 MiniMind 的总参数量</strong>了！这就是为什么小模型必须用小词表。</p>
+<hr />
+<h2 id="5-d_model">5. 嵌入维度 d_model 的含义</h2>
+<h3 id="51-d_model768">5.1 d_model=768 代表什么？</h3>
+<p>d_model 是模型的"宽度"，贯穿整个 Transformer 的每一层。它决定了模型能表达多少信息。</p>
+<p>一个直觉性的理解：<br />
+- d_model=2：只能区分"正面/负面"这种粗粒度语义<br />
+- d_model=768：能捕捉非常细粒度的语义差异<br />
+- d_model=4096（如 LLaMA）：语义空间更大，表达能力更强</p>
+<h3 id="52-768">5.2 为什么是 768？</h3>
+<p>768 = 12 × 64 = 8 × 96。选择这个数字是因为：<br />
+1. 能被多头注意力的头数整除（MiniMind 用 8 个头，768/8=96）<br />
+2. 对于 64M 参数的模型来说是一个合理的宽度<br />
+3. 与 BERT-base（也是 768）相同，是一个经过充分验证的值</p>
+<h3 id="53-d_model">5.3 常见模型的 d_model</h3>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>d_model</th>
+<th>参数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BERT-base</td>
+<td>768</td>
+<td>110M</td>
+</tr>
+<tr>
+<td>GPT-2</td>
+<td>768</td>
+<td>117M</td>
+</tr>
+<tr>
+<td><strong>MiniMind</strong></td>
+<td><strong>768</strong></td>
+<td><strong>64M</strong></td>
+</tr>
+<tr>
+<td>LLaMA-7B</td>
+<td>4,096</td>
+<td>7B</td>
+</tr>
+<tr>
+<td>Qwen2-72B</td>
+<td>8,192</td>
+<td>72B</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-weight-tying">6. 权重共享（Weight Tying）</h2>
+<h3 id="61">6.1 什么是权重共享？</h3>
+<p>在 Transformer 语言模型中，有两个地方用到了词表维度的矩阵：</p>
+<ol>
+<li><strong>输入端 Embedding 层</strong>（<code>embed_tokens</code>）：token id → 向量</li>
+<li>
+<p>形状：(vocab_size, d_model) = (6400, 768)</p>
+</li>
+<li>
+<p><strong>输出端 LM Head 层</strong>（<code>lm_head</code>）：向量 → token 概率</p>
+</li>
+<li>形状：(d_model, vocab_size) = (768, 6400)</li>
+</ol>
+<p><strong>权重共享就是让这两个矩阵共用同一组参数。</strong></p>
+<h3 id="62">6.2 为什么可以共享？</h3>
+<p>从语义上理解：</p>
+<ul>
+<li>Embedding 层：给定一个 token id，找到它的"语义表示"</li>
+<li>LM Head 层：给定一个"语义表示"，找到最匹配的 token</li>
+</ul>
+<p>这两个操作是<strong>互逆的</strong>！Embedding 是"查表"（id → 向量），LM Head 是"反查"（向量 → id 的概率）。用同一张表做正查和反查，完全合理。</p>
+<h3 id="63">6.3 权重共享的好处</h3>
+<ol>
+<li><strong>减少参数量</strong>：省掉了一半的词嵌入参数</li>
+<li>不共享：5M + 5M = 10M 参数</li>
+<li>共享后：仅 5M 参数</li>
+<li>
+<p>对 MiniMind（64M）来说节省了约 <strong>7.7%</strong> 的参数</p>
+</li>
+<li>
+<p><strong>语义一致性</strong>：输入和输出使用同一个语义空间，训练更稳定</p>
+</li>
+<li>
+<p><strong>正则化效果</strong>：减少了自由参数，有轻微的正则化作用，防止过拟合</p>
+</li>
+</ol>
+<h3 id="64-minimind">6.4 MiniMind 中的实现</h3>
+<p>在 <code>model/model_minimind.py</code> 中：</p>
+<pre class="highlight"><code class="language-python">class MiniMindModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(config.vocab_size, config.dim)
+        # ... 其他层 ...
+        self.lm_head = nn.Linear(config.dim, config.vocab_size, bias=False)
+
+        # 权重共享！
+        self.lm_head.weight = self.embed_tokens.weight
+</code></pre>
+
+<p>最后一行是关键：<code>lm_head.weight</code> 直接指向 <code>embed_tokens.weight</code>，两者在内存中是同一个张量。训练时梯度会同时从两条路径回传到这个共享参数。</p>
+<hr />
+<h2 id="7-word2vec">7. Word2Vec：历史的起点（简介）</h2>
+<h3 id="71-word2vec">7.1 为什么提 Word2Vec？</h3>
+<p>在 Transformer 出现之前（2013 年），Google 的 Word2Vec 是词嵌入的里程碑。虽然现在 LLM 中不直接用 Word2Vec，但它的核心思想"用上下文定义词义"至今仍是基础。</p>
+<h3 id="72">7.2 核心思想</h3>
+<blockquote>
+<p><strong>"告诉我你的朋友是谁，我就知道你是谁"</strong></p>
+</blockquote>
+<p>Word2Vec 通过预测上下文来学习词向量：<br />
+- <strong>CBOW</strong>：用周围的词预测中间的词<br />
+- <strong>Skip-gram</strong>：用中间的词预测周围的词</p>
+<h3 id="73">7.3 著名的"向量算术"</h3>
+<p>Word2Vec 发现了令人惊叹的性质：</p>
+<p>$$<br />
+\vec{\text{King}} - \vec{\text{Man}} + \vec{\text{Woman}} \approx \vec{\text{Queen}}<br />
+$$</p>
+<p>这说明嵌入空间捕捉到了"性别"这个语义维度。类似的：</p>
+<p>$$<br />
+\vec{\text{北京}} - \vec{\text{中国}} + \vec{\text{日本}} \approx \vec{\text{东京}}<br />
+$$</p>
+<h3 id="74-embedding">7.4 与现代 Embedding 的区别</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Word2Vec</th>
+<th>现代 LLM Embedding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>训练方式</td>
+<td>独立训练</td>
+<td>与模型联合训练</td>
+</tr>
+<tr>
+<td>上下文感知</td>
+<td>静态（同一个词只有一个向量）</td>
+<td>动态（经过 Transformer 后随上下文变化）</td>
+</tr>
+<tr>
+<td>用途</td>
+<td>特征提取</td>
+<td>模型的第一层</td>
+</tr>
+<tr>
+<td>词表</td>
+<td>词级别</td>
+<td>子词（BPE）级别</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-minimind">8. MiniMind 源码解读</h2>
+<h3 id="81">8.1 模型配置中的关键参数</h3>
+<p>在 <code>model/model_minimind.py</code> 的 <code>LMConfig</code> 类中：</p>
+<pre class="highlight"><code class="language-python">class LMConfig:
+    dim: int = 768           # d_model，嵌入维度
+    vocab_size: int = 6400   # 词表大小
+</code></pre>
+
+<h3 id="82-embedding">8.2 Embedding 层的定义</h3>
+<pre class="highlight"><code class="language-python">class MiniMindModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(config.vocab_size, config.dim)
+</code></pre>
+
+<p>这一行创建了一个 (6400, 768) 的嵌入矩阵。</p>
+<h3 id="83-forward-embedding">8.3 Forward 中的 Embedding</h3>
+<pre class="highlight"><code class="language-python">def forward(self, input_ids, ...):
+    h = self.embed_tokens(input_ids)  # (batch, seq_len) → (batch, seq_len, 768)
+    # h 就是每个 token 的嵌入向量，接下来送入 Transformer 层
+</code></pre>
+
+<h3 id="84">8.4 权重共享的实现</h3>
+<pre class="highlight"><code class="language-python">class MiniMindModel(nn.Module):
+    def __init__(self, config):
+        # ...
+        self.lm_head = nn.Linear(config.dim, config.vocab_size, bias=False)
+        self.lm_head.weight = self.embed_tokens.weight  # 权重共享
+</code></pre>
+
+<h3 id="85">8.5 数据流小结</h3>
+<pre class="highlight"><code>token ids    Embedding     Transformer      LM Head         概率
+[356,1892] → [768d,768d] → [768d,768d] → [6400d,6400d] → softmax → 预测
+           查表            核心处理        用共享权重投影
+</code></pre>
+
+<hr />
+<h2 id="_3">🎤 面试考点</h2>
+<h3 id="q1nnembedding">Q1：<code>nn.Embedding</code> 的本质是什么？</h3>
+<p><strong>参考答案</strong>：<code>nn.Embedding</code> 本质上是一个查表（lookup table）操作。它维护一个 (vocab_size, embedding_dim) 的权重矩阵，给定 token id 就返回该行的向量。在数学上等价于 One-Hot 向量与嵌入矩阵的乘法，但实现上用的是索引查找，效率远高于矩阵乘法。</p>
+<h3 id="q2minimind-embedding">Q2：MiniMind 的 Embedding 参数量是多少？占总参数量的比例？</h3>
+<p><strong>参考答案</strong>：Embedding 参数量 = 6400 × 768 = 4,915,200 ≈ 5M。如果不做权重共享，Embedding + lm_head = 10M，占 64M 总参数的约 15.6%。做了权重共享后只有 5M，占约 7.7%。</p>
+<h3 id="q3weight-tying">Q3：什么是权重共享（Weight Tying）？为什么要这么做？</h3>
+<p><strong>参考答案</strong>：权重共享是指 Embedding 层和 LM Head 层使用同一个参数矩阵。好处有三：（1）节省参数量，对小模型尤其重要；（2）保持输入输出语义空间的一致性；（3）有轻微的正则化效果。这是因为 Embedding（id→向量）和 LM Head（向量→概率）是互逆操作，使用同一组参数在语义上是合理的。</p>
+<h3 id="q4-one-hot-nlp">Q4：为什么 One-Hot 编码在大规模 NLP 中不可行？</h3>
+<p><strong>参考答案</strong>：One-Hot 有三个致命缺陷：（1）维度等于词表大小，大词表下维度爆炸；（2）任意两个向量都正交，无法表达语义相似性；（3）极度稀疏，浪费存储和计算。Dense Embedding 用低维稠密向量解决了这些问题。</p>
+<h3 id="q5-d_model">Q5：嵌入维度 d_model 的选择有什么讲究？</h3>
+<p><strong>参考答案</strong>：d_model 决定了模型的"宽度"和表达能力。选择时需要考虑：（1）必须能被注意力头数整除（MiniMind：768/8=96）；（2）要与模型总参数量匹配——太大浪费参数，太小表达力不足；（3）通常是 2 的幂或其倍数，便于 GPU 并行计算。</p>
+<h3 id="q6word2vec-transformer-embedding">Q6：Word2Vec 和 Transformer 中的 Embedding 有什么区别？</h3>
+<p><strong>参考答案</strong>：Word2Vec 的 Embedding 是静态的，同一个词无论在什么上下文中向量都一样；Transformer 的 Embedding 只是第一层，经过多层 Self-Attention 后，同一个词在不同上下文中会有不同的表示（上下文相关）。此外，Word2Vec 是独立训练的，而 Transformer 的 Embedding 是与整个模型端到端联合训练的。</p>
+<hr />
+<h2 id="_4">✅ 自测题</h2>
+<ol>
+<li><strong>填空</strong>：<code>nn.Embedding(6400, 768)</code> 内部维护的权重矩阵形状是 ______。</li>
+<li><strong>计算</strong>：如果不做权重共享，MiniMind 的 Embedding + lm_head 总共有多少参数？</li>
+<li><strong>判断</strong>：<code>nn.Embedding</code> 的本质是矩阵乘法。（对/错？）</li>
+<li><strong>简答</strong>：权重共享为什么不会导致 Embedding 和 lm_head 的功能冲突？</li>
+<li><strong>思考</strong>：如果 d_model 从 768 增大到 1024，模型的哪些部分会受影响？</li>
+</ol>
+<details>
+<summary>查看答案</summary>
+
+1. **(6400, 768)**
+2. 不共享：Embedding = 6400 × 768 = 4,915,200；lm_head = 768 × 6400 = 4,915,200；总计 **9,830,400 ≈ 9.8M**
+3. **错**。数学上等价于 One-Hot 与矩阵的乘法，但实际实现是索引查找（查表），不是矩阵乘法。
+4. Embedding 是"正查"（id → 向量），lm_head 是"反查"（向量 → 概率）。这是互逆操作，使用同一张表不仅不冲突，还能保持语义一致性。
+5. Embedding、所有注意力层（Q/K/V 投影和输出投影）、FFN 层、RMSNorm、lm_head 都会受影响。d_model 是贯穿整个模型的核心维度。
+
+</details>
+
+<hr />
+<h2 id="_5">🔮 下一节预告</h2>
+<p>token 的嵌入向量已经有了语义信息，但 Transformer 的训练是否稳定呢？深度网络中梯度很容易爆炸或消失。下一节 <strong>L07 · RMSNorm 归一化</strong>，我们将学习 MiniMind 如何用一个简洁的归一化层来守护训练的稳定性。</p>
+<hr />
+<p><a href="L05-Tokenizer分词器.md">⬅️ L05 · Tokenizer 分词器</a> | <a href="../README.md">目录</a> | <a href="L07-RMSNorm归一化.md">L07 · RMSNorm 归一化 ➡️</a></p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L14 - LoRA 高效微调 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l14-lora">L14 - LoRA 高效微调</h1>
+<blockquote>
+<p><em>"四两拨千斤的微调艺术"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解全参微调的问题和 LoRA 的动机</li>
+<li><strong>掌握 LoRA 的数学原理</strong>（面试必考）</li>
+<li>理解 LoRA 的参数量计算和效率对比</li>
+<li>能读懂 MiniMind 纯手写的 LoRA 实现</li>
+<li>了解 LoRA 的应用场景和 QLoRA</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>L13 监督微调 SFT（理解 SFT 的目标和流程）</li>
+<li>线性代数基础（矩阵乘法、矩阵的秩）</li>
+<li>了解神经网络中线性层的参数</li>
+</ul>
+<hr />
+<h2 id="1">1. 全参微调的问题</h2>
+<h3 id="11">1.1 什么是全参微调？</h3>
+<p>全参微调（Full Fine-Tuning）就是在 SFT 时更新模型的<strong>所有参数</strong>。对于 MiniMind 的 64M 参数来说这还可以接受，但对于大模型来说问题就来了：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>参数量</th>
+<th>FP16 权重大小</th>
+<th>训练显存（估算）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MiniMind</td>
+<td>64M</td>
+<td>~128MB</td>
+<td>~1GB</td>
+</tr>
+<tr>
+<td>LLaMA-7B</td>
+<td>7B</td>
+<td>~14GB</td>
+<td>~56GB</td>
+</tr>
+<tr>
+<td>LLaMA-70B</td>
+<td>70B</td>
+<td>~140GB</td>
+<td>~560GB</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 全参微调的三大问题</h3>
+<ol>
+<li><strong>计算量巨大</strong>：需要为所有参数计算梯度并更新</li>
+<li><strong>显存不够</strong>：训练显存 ≈ 4 × 模型权重大小（参数 + 梯度 + 优化器状态）</li>
+<li><strong>容易过拟合</strong>：参数量远大于 SFT 数据量时，模型容易记忆训练集</li>
+<li><strong>存储成本高</strong>：每个下游任务都需要保存一份完整的模型权重</li>
+</ol>
+<h3 id="13">1.3 能否只训练一小部分参数？</h3>
+<p>最直觉的想法：冻结大部分参数，只训练最后几层。但这种方式效果有限，因为每一层都可能需要适配新任务。</p>
+<p>LoRA 提供了一个更优雅的解决方案。</p>
+<hr />
+<h2 id="2-lora">2. LoRA 的核心思想</h2>
+<h3 id="21">2.1 核心假设</h3>
+<p>LoRA（Low-Rank Adaptation）的核心假设是：</p>
+<blockquote>
+<p><strong>模型在适配下游任务时，权重的变化量 ΔW 是低秩的。</strong></p>
+</blockquote>
+<p>换句话说，虽然权重矩阵 W 本身是高维的（比如 768×768），但从预训练到微调，权重的<strong>变化</strong> ΔW 可以用一个低秩矩阵很好地近似。</p>
+<h3 id="22">2.2 低秩分解</h3>
+<p>如果一个 (d \times d) 的矩阵 ΔW 的秩为 (r)（且 (r \ll d)），那么它可以分解为两个小矩阵的乘积：</p>
+<p>$$\Delta W = B \times A$$</p>
+<p>其中：<br />
+- (B \in \mathbb{R}^{d \times r})<br />
+- (A \in \mathbb{R}^{r \times d})</p>
+<p>参数量从 (d^2) 降低到 (2dr)。当 (r \ll d) 时，这是一个巨大的压缩。</p>
+<h3 id="23-lora">2.3 LoRA 的工作方式</h3>
+<p>LoRA 的做法：</p>
+<ol>
+<li><strong>冻结</strong>原始预训练权重 (W)（不更新）</li>
+<li>在旁路添加两个小矩阵 (B) 和 (A)</li>
+<li>前向传播时：(W' = W + BA)</li>
+</ol>
+<pre class="highlight"><code>         ┌─────────────┐
+   x ──→ │  W (冻结)   │ ──→  Wx
+   │     └─────────────┘       │
+   │                           ＋ ──→ 输出 = Wx + BAx
+   │     ┌───┐   ┌───┐        │
+   └───→ │ A │ → │ B │ ──→  BAx
+         └───┘   └───┘
+         r×d     d×r
+         (可训练)
+</code></pre>
+
+<p>训练时只更新 A 和 B，原始权重 W 完全不变。</p>
+<h3 id="24">2.4 初始化策略</h3>
+<ul>
+<li><strong>A 矩阵</strong>：使用随机初始化（通常是高斯分布）</li>
+<li><strong>B 矩阵</strong>：初始化为全零</li>
+</ul>
+<p>为什么 B 初始化为零？因为这样训练开始时 (BA = 0)，模型的输出和原始模型完全一致，LoRA 不会干扰预训练学到的知识。随着训练进行，B 逐渐学到有意义的值。</p>
+<h3 id="25">2.5 缩放因子</h3>
+<p>实际使用时还有一个缩放因子 (\alpha)：</p>
+<p>$$W' = W + \frac{\alpha}{r} \cdot BA$$</p>
+<p>(\alpha / r) 控制 LoRA 的"影响力"。通常 (\alpha) 设为 (r) 的 1-2 倍，使缩放因子接近 1。</p>
+<hr />
+<h2 id="3">3. 参数量对比</h2>
+<h3 id="31-vs-lora">3.1 全参 vs LoRA</h3>
+<p>以 MiniMind 中一个典型的线性层为例：</p>
+<p><strong>原始线性层</strong>（768 → 768）：<br />
+$$\text{参数量} = 768 \times 768 = 589,824$$</p>
+<p><strong>LoRA（r=8）</strong>：<br />
+$$\text{参数量} = 768 \times 8 + 8 \times 768 = 6,144 + 6,144 = 12,288$$</p>
+<p><strong>压缩比</strong>：<br />
+$$\frac{12,288}{589,824} \approx 2.1\%$$</p>
+<p>只训练 <strong>2%</strong> 的参数！</p>
+<h3 id="32-r">3.2 不同秩 r 的参数量</h3>
+<table>
+<thead>
+<tr>
+<th>秩 r</th>
+<th>LoRA 参数量</th>
+<th>占原始比例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>1,536</td>
+<td>0.26%</td>
+</tr>
+<tr>
+<td>4</td>
+<td>6,144</td>
+<td>1.04%</td>
+</tr>
+<tr>
+<td>8</td>
+<td>12,288</td>
+<td>2.08%</td>
+</tr>
+<tr>
+<td>16</td>
+<td>24,576</td>
+<td>4.17%</td>
+</tr>
+<tr>
+<td>32</td>
+<td>49,152</td>
+<td>8.33%</td>
+</tr>
+<tr>
+<td>64</td>
+<td>98,304</td>
+<td>16.67%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-r">3.3 秩 r 如何选择？</h3>
+<ul>
+<li><strong>r 太小</strong>：表达能力不足，无法充分适配下游任务</li>
+<li><strong>r 太大</strong>：参数量增加，失去 LoRA 的效率优势</li>
+<li><strong>经验值</strong>：r = 4~16 通常就够了</li>
+<li><strong>复杂任务</strong>用更大的 r，简单任务用更小的 r</li>
+</ul>
+<p>原始论文中的实验表明，对于大多数 NLP 任务，r = 4 就能达到接近全参微调的效果。</p>
+<hr />
+<h2 id="4-lora">4. LoRA 加在哪些层？</h2>
+<h3 id="41">4.1 通常的选择</h3>
+<p>LoRA 不需要加在模型的每一层上。最常见的做法是加在 <strong>Attention 层的投影矩阵</strong>上：</p>
+<table>
+<thead>
+<tr>
+<th>投影层</th>
+<th>维度</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q 投影（Wq）</td>
+<td>768 → 768</td>
+<td>Query 投影</td>
+</tr>
+<tr>
+<td>K 投影（Wk）</td>
+<td>768 → 384（GQA）</td>
+<td>Key 投影</td>
+</tr>
+<tr>
+<td>V 投影（Wv）</td>
+<td>768 → 384（GQA）</td>
+<td>Value 投影</td>
+</tr>
+<tr>
+<td>O 投影（Wo）</td>
+<td>768 → 768</td>
+<td>Output 投影</td>
+</tr>
+</tbody>
+</table>
+<p>有些实现也会在 FFN 层加 LoRA，但性价比不如 Attention 层。</p>
+<h3 id="42-attention">4.2 为什么 Attention 层更有效？</h3>
+<p>Attention 层是模型学习"关注什么"的核心。不同下游任务需要模型关注不同的信息，因此 Attention 层的权重变化最大。在这些层加 LoRA，能以最少的参数实现最大的适配效果。</p>
+<hr />
+<h2 id="5-minimind-lora">5. MiniMind 的 LoRA 实现</h2>
+<h3 id="51">5.1 亮点：纯手写</h3>
+<p>MiniMind 的 LoRA 实现<strong>不依赖 peft 库</strong>，完全从零手写。这是学习 LoRA 原理的绝佳素材。</p>
+<h3 id="52">5.2 关键文件</h3>
+<ul>
+<li><code>model/model_lora.py</code>：LoRA 模型定义</li>
+<li><code>trainer/train_lora.py</code>：LoRA 训练脚本</li>
+<li><code>scripts/convert_model.py</code>：LoRA 权重合并</li>
+</ul>
+<h3 id="53-lora">5.3 LoRA 线性层的实现</h3>
+<pre class="highlight"><code class="language-python">class LoRALinear(nn.Module):
+    &quot;&quot;&quot;带 LoRA 旁路的线性层&quot;&quot;&quot;
+    def __init__(self, in_features, out_features, r=8, alpha=16):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features, bias=False)
+        self.linear.weight.requires_grad = False  # 冻结原始权重
+
+        # LoRA 旁路
+        self.lora_A = nn.Parameter(torch.randn(r, in_features) * 0.01)
+        self.lora_B = nn.Parameter(torch.zeros(out_features, r))
+        self.scaling = alpha / r
+
+    def forward(self, x):
+        # 原始路径 + LoRA 路径
+        base_output = self.linear(x)
+        lora_output = (x @ self.lora_A.T @ self.lora_B.T) * self.scaling
+        return base_output + lora_output
+</code></pre>
+
+<p>核心就这么简单！冻结原始权重，加一个 A 和 B 的旁路，训练时只更新 A 和 B。</p>
+<h3 id="54-lora">5.4 LoRA 的训练流程</h3>
+<p><code>train_lora.py</code> 与 <code>train_full_sft.py</code> 的主要区别：</p>
+<pre class="highlight"><code class="language-python"># 1. 加载预训练模型
+base_model = MiniMindForCausalLM(config)
+base_model.load_state_dict(torch.load('pretrain_checkpoint.pt'))
+
+# 2. 将模型转换为 LoRA 模型（替换线性层）
+lora_model = convert_to_lora(base_model, r=8, alpha=16)
+
+# 3. 冻结所有原始参数，只训练 LoRA 参数
+for name, param in lora_model.named_parameters():
+    if 'lora' not in name:
+        param.requires_grad = False
+
+# 4. 查看可训练参数量
+trainable = sum(p.numel() for p in lora_model.parameters() if p.requires_grad)
+total = sum(p.numel() for p in lora_model.parameters())
+print(f&quot;Trainable: {trainable:,} / {total:,} = {100*trainable/total:.2f}%&quot;)
+
+# 5. 训练循环（与 SFT 相同）
+optimizer = AdamW(filter(lambda p: p.requires_grad, lora_model.parameters()), lr=1e-4)
+</code></pre>
+
+<h3 id="55-lora">5.5 LoRA 权重合并</h3>
+<p>训练完成后，可以将 LoRA 权重合并回原始权重，推理时无额外开销：</p>
+<p>$$W_{\text{merged}} = W + \frac{\alpha}{r} \cdot BA$$</p>
+<pre class="highlight"><code class="language-python"># scripts/convert_model.py 的核心逻辑
+def merge_lora_weights(model):
+    for module in model.modules():
+        if isinstance(module, LoRALinear):
+            # 将 LoRA 权重合并到原始权重
+            delta_w = (module.lora_B @ module.lora_A) * module.scaling
+            module.linear.weight.data += delta_w
+    return model
+</code></pre>
+
+<p>合并后的模型和普通模型完全相同，推理时不需要任何额外计算。</p>
+<hr />
+<h2 id="6-lora">6. LoRA 的应用场景</h2>
+<h3 id="61">6.1 垂直领域适配</h3>
+<p>用 LoRA 将通用模型适配到特定领域：</p>
+<pre class="highlight"><code>通用模型 + 医疗LoRA → 医疗问答模型
+通用模型 + 法律LoRA → 法律咨询模型
+通用模型 + 编程LoRA → 代码生成模型
+</code></pre>
+
+<p>每个 LoRA 适配器只有几 MB，而基础模型有几十 GB。</p>
+<h3 id="62">6.2 自我认知定制</h3>
+<pre class="highlight"><code>通用模型 + 认知LoRA → &quot;我是小明助手&quot;
+通用模型 + 认知LoRA → &quot;我是医疗AI&quot;
+</code></pre>
+
+<h3 id="63">6.3 多任务共存</h3>
+<p>一个基础模型可以同时配备多个 LoRA 适配器：</p>
+<pre class="highlight"><code>基础模型权重（共享） ← 只存一份
+  ├── 任务A的LoRA权重 ← 几 MB
+  ├── 任务B的LoRA权重 ← 几 MB
+  └── 任务C的LoRA权重 ← 几 MB
+</code></pre>
+
+<p>推理时根据请求切换不同的 LoRA，极大节省存储和部署成本。</p>
+<hr />
+<h2 id="7-qlora">7. QLoRA 简介</h2>
+<h3 id="71-lora">7.1 量化 + LoRA</h3>
+<p>QLoRA 在 LoRA 的基础上进一步优化：将冻结的原始权重<strong>量化到 4-bit</strong>（NF4 格式），进一步降低显存占用。</p>
+<pre class="highlight"><code>原始:   FP16权重（冻结） + FP16 LoRA权重（可训练）
+QLoRA:  4-bit权重（冻结） + FP16 LoRA权重（可训练）
+</code></pre>
+
+<h3 id="72-qlora">7.2 QLoRA 的关键技术</h3>
+<ol>
+<li><strong>NF4 量化</strong>：一种专为正态分布设计的 4-bit 量化方式</li>
+<li><strong>双重量化</strong>：连量化常数也量化，进一步节省显存</li>
+<li><strong>分页优化器</strong>：利用 CPU 内存处理优化器状态</li>
+</ol>
+<h3 id="73-qlora">7.3 QLoRA 的效果</h3>
+<p>QLoRA 让你可以在消费级 GPU（24GB）上微调 7B 甚至 13B 的模型，且效果接近全参微调。MiniMind 模型本身就很小，不太需要 QLoRA，但对于更大的模型这是非常实用的技术。</p>
+<hr />
+<h2 id="8-lora-vs">8. LoRA vs 全参微调的对比</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>全参微调</th>
+<th>LoRA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>可训练参数</td>
+<td>100%</td>
+<td>1-5%</td>
+</tr>
+<tr>
+<td>显存占用</td>
+<td>高</td>
+<td>低（冻结权重不需要梯度）</td>
+</tr>
+<tr>
+<td>训练速度</td>
+<td>慢</td>
+<td>快</td>
+</tr>
+<tr>
+<td>过拟合风险</td>
+<td>高</td>
+<td>低（天然正则化）</td>
+</tr>
+<tr>
+<td>效果上限</td>
+<td>最高</td>
+<td>接近全参（通常 95%+）</td>
+</tr>
+<tr>
+<td>部署灵活性</td>
+<td>低（每任务一份模型）</td>
+<td>高（共享基座，切换LoRA）</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>数据充足、追求极致效果</td>
+<td>数据较少、需要快速适配</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">🎤 面试考点</h2>
+<h3 id="q1-lora">Q1: 请解释 LoRA 的原理和数学公式。（必考）</h3>
+<p><strong>答</strong>：LoRA 的核心假设是模型在适配下游任务时，权重变化量 ΔW 是低秩的。因此可以将 ΔW 分解为两个低秩矩阵的乘积：(\Delta W = BA)，其中 (B \in \mathbb{R}^{d \times r})，(A \in \mathbb{R}^{r \times d})，(r \ll d)。训练时冻结原始权重 W，只训练 A 和 B。前向传播时：(h = Wx + \frac{\alpha}{r}BAx)。初始化时 B=0 保证训练开始时不改变原始模型行为。</p>
+<h3 id="q2-lora-r">Q2: LoRA 的秩 r 如何选择？</h3>
+<p><strong>答</strong>：r 的选择取决于任务复杂度：<br />
+- 简单任务（如情感分类）：r = 1~4 就够了<br />
+- 中等任务（如指令微调）：r = 8~16<br />
+- 复杂任务（如多领域适配）：r = 16~64<br />
+原始论文实验表明，r = 4 在大多数 NLP 任务上已经能达到接近全参微调的效果。过大的 r 会增加参数量，失去 LoRA 的效率优势。</p>
+<h3 id="q3-lora-vs">Q3: LoRA vs 全参微调的优劣？</h3>
+<p><strong>答</strong>：<br />
+- <strong>LoRA 优势</strong>：(1) 只训练 2% 参数，显存和计算量大幅降低；(2) 天然正则化，不易过拟合；(3) 多任务可共享基座模型；(4) 权重可合并，推理无额外开销<br />
+- <strong>LoRA 劣势</strong>：(1) 表达能力受限于秩 r，效果上限低于全参；(2) 某些需要大幅调整模型行为的任务效果可能不足<br />
+- <strong>选择建议</strong>：数据少或资源有限用 LoRA，数据充足且追求极致效果用全参</p>
+<h3 id="q4-lora-b">Q4: 为什么 LoRA 的 B 矩阵初始化为零？</h3>
+<p><strong>答</strong>：确保训练开始时 (BA = 0)，LoRA 旁路不会改变原始模型的输出。这样做有两个好处：(1) 保留预训练学到的知识，从一个好的起点开始微调；(2) 训练更稳定，不会因为随机初始化的 LoRA 破坏原始模型的表现。</p>
+<h3 id="q5-lora">Q5: LoRA 通常加在模型的哪些层？为什么？</h3>
+<p><strong>答</strong>：通常加在 Attention 层的 Q、K、V、O 投影矩阵上。因为 Attention 层负责学习"关注什么信息"，不同下游任务的关注模式差异最大，因此在这些层加 LoRA 的性价比最高。部分实现也会在 FFN 层加 LoRA，但增加的参数量较大，边际效果递减。</p>
+<h3 id="q6-lora">Q6: LoRA 权重合并后推理时有额外开销吗？</h3>
+<p><strong>答</strong>：没有。合并后 (W_{\text{merged}} = W + \frac{\alpha}{r}BA)，模型结构和普通模型完全相同，推理时没有任何额外计算。这是 LoRA 相比其他 adapter 方法的一大优势。</p>
+<hr />
+<h2 id="_4">✅ 自测题</h2>
+<ol>
+<li>
+<p>计算：对于一个 1024×1024 的线性层，使用 r=16 的 LoRA，可训练参数量是多少？占原始参数的百分比？</p>
+</li>
+<li>
+<p>手动推导：给定 (x \in \mathbb{R}^{1 \times 768})，(W \in \mathbb{R}^{768 \times 768})，(A \in \mathbb{R}^{8 \times 768})，(B \in \mathbb{R}^{768 \times 8})，写出 LoRA 前向传播的完整计算过程和每步的维度。</p>
+</li>
+<li>
+<p>为什么说 LoRA 具有"天然正则化"效果？</p>
+</li>
+<li>
+<p>如果 LoRA 的 A 和 B 都初始化为零会怎样？</p>
+</li>
+<li>
+<p>实现一个简单的 LoRA 线性层（不看参考代码）。</p>
+</li>
+</ol>
+<hr />
+<h2 id="_5">⏭️ 下一节预告</h2>
+<p><strong>L15 - 知识蒸馏</strong>：除了 LoRA，还有一种强大的技术——知识蒸馏，让小模型从大模型那里"偷师学艺"。MiniMind 同时使用了黑盒蒸馏和白盒蒸馏，我们将深入理解温度、KL 散度和蒸馏损失函数。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

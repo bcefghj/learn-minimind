@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L07 · RMSNorm 归一化 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l07-rmsnorm">L07 · RMSNorm 归一化</h1>
+<blockquote>
+<p><em>"训练稳定的守护者"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📋 本节目标</h2>
+<p>学完本节，你将能够：</p>
+<ol>
+<li>理解深度网络为什么需要归一化（梯度消失/爆炸问题）</li>
+<li>掌握 BatchNorm → LayerNorm → RMSNorm 的发展脉络</li>
+<li>手推 RMSNorm 的数学公式</li>
+<li>理解 Pre-Norm vs Post-Norm 的区别及各自优劣</li>
+<li>读懂 MiniMind 中 RMSNorm 的源码实现</li>
+</ol>
+<hr />
+<h2 id="_2">🔗 前置知识</h2>
+<ul>
+<li><a href="L06-词嵌入Embedding.md">L06 · 词嵌入 Embedding</a>——了解 Embedding 输出的向量</li>
+<li>基本的统计概念：均值、方差</li>
+<li>PyTorch 基础：<code>torch.mean()</code>、<code>torch.rsqrt()</code></li>
+</ul>
+<hr />
+<h2 id="1">1. 为什么深度网络需要归一化？</h2>
+<h3 id="11">1.1 一个直觉的例子</h3>
+<p>假设你在训练一个 8 层的 Transformer（MiniMind 就是 8 层）。每一层都对数据做一些变换。如果某层的输出值偏大，下一层的输入就更大，输出就更更大......经过 8 层之后，数值可能变成天文数字——这就是<strong>梯度爆炸</strong>。</p>
+<p>反过来，如果每层输出值偏小，层层衰减后就趋近于零——这就是<strong>梯度消失</strong>。</p>
+<p>用类比来说：你在传话游戏中传了 8 轮，如果每轮都稍微夸大一点（×1.5），最后就会面目全非。我们需要一个"校准员"，每轮传话后把音量拉回正常范围。</p>
+<p><strong>归一化层就是这个"校准员"。</strong></p>
+<h3 id="12">1.2 数学直觉</h3>
+<p>假设每层的变换可以简化为乘以一个系数 (\alpha)：</p>
+<ul>
+<li>经过 (n) 层后，输出 = (\alpha^n \cdot x)</li>
+<li>如果 (\alpha = 1.1)，8 层后：(1.1^8 \approx 2.14)（增大 2 倍）</li>
+<li>如果 (\alpha = 0.9)，8 层后：(0.9^8 \approx 0.43)（缩小一半）</li>
+<li>如果层数更多（比如 GPT-3 的 96 层），情况会极其严重</li>
+</ul>
+<p>归一化的核心思想：<strong>在每层之后，把数据的分布"拉回"到一个稳定的范围</strong>。</p>
+<hr />
+<h2 id="2">2. 归一化方法的演进</h2>
+<h3 id="21-batchnorm2015">2.1 BatchNorm（2015）</h3>
+<p><strong>Batch Normalization</strong> 是最早被广泛使用的归一化方法。</p>
+<h4 id="_3">公式</h4>
+<p>$$<br />
+\text{BN}(x) = \gamma \cdot \frac{x - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}} + \beta<br />
+$$</p>
+<p>其中 (\mu_B) 和 (\sigma_B^2) 是<strong>同一个 batch 内所有样本</strong>在同一特征维度上的均值和方差。</p>
+<h4 id="_4">归一化维度</h4>
+<pre class="highlight"><code>输入形状: (Batch, SeqLen, Dim)
+         ↓ 沿 Batch 维度统计
+BN: 对每个特征维度，跨所有样本计算均值和方差
+</code></pre>
+
+<h4 id="_5">问题</h4>
+<ol>
+<li><strong>依赖 batch size</strong>：batch 太小统计量不稳定</li>
+<li><strong>不适合变长序列</strong>：NLP 中每个句子长度不同，同一位置跨 batch 的统计没有意义</li>
+<li><strong>推理时需要维护 running mean/var</strong>：额外复杂度</li>
+</ol>
+<blockquote>
+<p>结论：BatchNorm 在 CV 中很成功，但<strong>不适合 NLP/Transformer</strong>。</p>
+</blockquote>
+<h3 id="22-layernorm2016">2.2 LayerNorm（2016）</h3>
+<p><strong>Layer Normalization</strong> 专门为 RNN/Transformer 设计。</p>
+<h4 id="_6">公式</h4>
+<p>$$<br />
+\text{LN}(x) = \gamma \cdot \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta<br />
+$$</p>
+<p>其中 (\mu) 和 (\sigma^2) 是<strong>单个样本的单个位置</strong>在所有特征维度上的均值和方差。</p>
+<h4 id="_7">归一化维度</h4>
+<pre class="highlight"><code>输入形状: (Batch, SeqLen, Dim)
+                          ↓ 沿 Dim 维度统计
+LN: 对每个 token，跨所有特征维度计算均值和方差
+</code></pre>
+
+<h4 id="_8">关键参数</h4>
+<ul>
+<li>(\gamma)（scale）：可学习的缩放参数，形状 (Dim,)</li>
+<li>(\beta)（shift）：可学习的偏移参数，形状 (Dim,)</li>
+<li>(\epsilon)：一个极小值（如 1e-5），防止除以零</li>
+</ul>
+<h4 id="_9">优点</h4>
+<ul>
+<li>不依赖 batch size</li>
+<li>适合变长序列</li>
+<li>原始 Transformer（2017）就使用 LayerNorm</li>
+</ul>
+<h3 id="23-rmsnorm2019">2.3 RMSNorm（2019）</h3>
+<p><strong>Root Mean Square Layer Normalization</strong> 是对 LayerNorm 的简化。</p>
+<p>论文 <em>"Root Mean Square Layer Normalization"</em>（Zhang &amp; Sennrich, 2019）发现：LayerNorm 中<strong>减均值（re-centering）这一步其实不必要</strong>，去掉后效果几乎不变，但计算更快。</p>
+<h4 id="_10">公式</h4>
+<p>$$<br />
+\text{RMSNorm}(x) = \gamma \cdot \frac{x}{\text{RMS}(x) + \epsilon}<br />
+$$</p>
+<p>其中：</p>
+<p>$$<br />
+\text{RMS}(x) = \sqrt{\frac{1}{d}\sum_{i=1}^{d} x_i^2}<br />
+$$</p>
+<p>等价写法（MiniMind 代码中的形式）：</p>
+<p>$$<br />
+\text{RMSNorm}(x) = x \cdot \text{rsqrt}\left(\text{mean}(x^2) + \epsilon\right) \cdot \gamma<br />
+$$</p>
+<h4 id="rmsnorm-vs-layernorm">RMSNorm vs LayerNorm 对比</h4>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>LayerNorm</th>
+<th>RMSNorm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>减均值</td>
+<td>✅ 有</td>
+<td>❌ 去掉了</td>
+</tr>
+<tr>
+<td>除方差</td>
+<td>✅ 有（标准差）</td>
+<td>✅ 有（RMS）</td>
+</tr>
+<tr>
+<td>可学习参数</td>
+<td>γ (scale) + β (shift)</td>
+<td>仅 γ (scale)</td>
+</tr>
+<tr>
+<td>计算量</td>
+<td>需要算均值+方差</td>
+<td>只需算均方根</td>
+</tr>
+<tr>
+<td>效果</td>
+<td>好</td>
+<td>几乎一样好</td>
+</tr>
+<tr>
+<td>速度</td>
+<td>基准</td>
+<td>快 ~10-15%</td>
+</tr>
+</tbody>
+</table>
+<h4 id="work">为什么去掉均值还能work？</h4>
+<p>直觉上，归一化的核心任务是控制数值的<strong>尺度</strong>（magnitude），而不是<strong>位置</strong>（center）。RMS 已经捕捉了数值尺度的信息，减均值带来的额外增益非常有限。</p>
+<hr />
+<h2 id="3-pre-norm-vs-post-norm">3. Pre-Norm vs Post-Norm</h2>
+<h3 id="31">3.1 两种放置方式</h3>
+<p>归一化层放在哪里，对训练影响很大。</p>
+<p><strong>Post-Norm</strong>（原始 Transformer，2017）：</p>
+<pre class="highlight"><code>x → Attention → Add(x) → Norm → FFN → Add → Norm → 输出
+     子层          残差连接   归一化
+</code></pre>
+
+<pre class="highlight"><code class="language-python"># Post-Norm 伪代码
+x = x + Attention(LayerNorm_not_here(x))  # 先算子层
+x = LayerNorm(x)                          # 后归一化
+x = x + FFN(x)
+x = LayerNorm(x)
+</code></pre>
+
+<p><strong>Pre-Norm</strong>（GPT-2 以后的主流选择）：</p>
+<pre class="highlight"><code>x → Norm → Attention → Add(x) → Norm → FFN → Add(x) → 输出
+     归一化   子层        残差连接
+</code></pre>
+
+<pre class="highlight"><code class="language-python"># Pre-Norm 伪代码
+x = x + Attention(RMSNorm(x))  # 先归一化，再算子层
+x = x + FFN(RMSNorm(x))
+</code></pre>
+
+<h3 id="32-minimind-pre-norm">3.2 MiniMind 使用 Pre-Norm</h3>
+<p>MiniMind（以及 GPT-2、LLaMA、Qwen 等现代 LLM）都使用 <strong>Pre-Norm</strong>。</p>
+<h3 id="33-pre-norm-vs-post-norm">3.3 Pre-Norm vs Post-Norm 对比</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Post-Norm</th>
+<th>Pre-Norm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>训练稳定性</td>
+<td>❌ 较差，深层时容易不稳定</td>
+<td>✅ 好，梯度流更顺畅</td>
+</tr>
+<tr>
+<td>最终性能</td>
+<td>✅ 理论上略好（有争议）</td>
+<td>⭕ 略逊或持平</td>
+</tr>
+<tr>
+<td>学习率敏感度</td>
+<td>❌ 对学习率很敏感</td>
+<td>✅ 对学习率不太敏感</td>
+</tr>
+<tr>
+<td>是否需要 warmup</td>
+<td>❌ 通常需要</td>
+<td>✅ 可以不需要</td>
+</tr>
+<tr>
+<td>现代 LLM 的选择</td>
+<td>❌ 很少用</td>
+<td>✅ 主流选择</td>
+</tr>
+</tbody>
+</table>
+<p><strong>为什么 Pre-Norm 训练更稳定？</strong></p>
+<p>关键在于残差连接。Pre-Norm 的梯度路径是：</p>
+<p>$$<br />
+\frac{\partial L}{\partial x_l} = \frac{\partial L}{\partial x_L} \cdot \prod_{i=l}^{L-1}\left(1 + \frac{\partial F_i(\text{Norm}(x_i))}{\partial x_i}\right)<br />
+$$</p>
+<p>其中 (+1) 来自残差连接。因为归一化后的值是有界的，所以 (\frac{\partial F_i}{\partial x_i}) 不会太大，保证了梯度的稳定传播。</p>
+<hr />
+<h2 id="4-eps">4. eps 参数的作用</h2>
+<h3 id="41">4.1 防止除以零</h3>
+<p>RMSNorm 的公式中有一个除法：除以 (\text{RMS}(x))。如果 (x) 的所有元素恰好都是 0（虽然极少发生），RMS 就是 0，除以 0 会导致数值溢出。</p>
+<p>(\epsilon)（epsilon）是一个极小的正数（MiniMind 中默认 1e-6），加在分母上确保不会除以零：</p>
+<p>$$<br />
+\text{RMSNorm}(x) = x \cdot \frac{1}{\sqrt{\text{mean}(x^2) + \epsilon}} \cdot \gamma<br />
+$$</p>
+<h3 id="42-eps">4.2 不同模型的 eps 值</h3>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>eps 值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BERT (LayerNorm)</td>
+<td>1e-12</td>
+</tr>
+<tr>
+<td>LLaMA (RMSNorm)</td>
+<td>1e-5</td>
+</tr>
+<tr>
+<td><strong>MiniMind (RMSNorm)</strong></td>
+<td><strong>1e-6</strong></td>
+</tr>
+</tbody>
+</table>
+<p>eps 太大会影响归一化精度，太小可能在低精度（如 FP16）下仍然出问题。1e-5 到 1e-6 是常见的选择。</p>
+<hr />
+<h2 id="5-minimind">5. MiniMind 源码解读</h2>
+<h3 id="51-rmsnorm">5.1 RMSNorm 类的完整实现</h3>
+<p>在 <code>model/model_minimind.py</code> 中，RMSNorm 的实现非常简洁：</p>
+<pre class="highlight"><code class="language-python">class RMSNorm(nn.Module):
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
+</code></pre>
+
+<h3 id="52">5.2 逐行解析</h3>
+<p><strong><code>__init__</code> 方法</strong>：</p>
+<pre class="highlight"><code class="language-python">def __init__(self, dim, eps=1e-6):
+    self.eps = eps                                # 防除零的小常数
+    self.weight = nn.Parameter(torch.ones(dim))   # 可学习的缩放参数 γ，初始化为全1
+</code></pre>
+
+<ul>
+<li><code>dim</code>：特征维度，MiniMind 中是 768</li>
+<li><code>weight</code>：可学习参数 (\gamma)，形状 (768,)，初始值全为 1（意味着训练开始时 RMSNorm 几乎是恒等变换）</li>
+</ul>
+<p><strong><code>forward</code> 方法</strong>：</p>
+<pre class="highlight"><code class="language-python">def forward(self, x):
+    # x 的形状: (batch_size, seq_len, dim)
+    return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
+</code></pre>
+
+<p>拆解这一行：</p>
+<ol>
+<li><code>x.pow(2)</code> → 每个元素平方，形状不变 (batch, seq, dim)</li>
+<li><code>.mean(-1, keepdim=True)</code> → 沿最后一个维度求均值 → (batch, seq, 1)</li>
+<li><code>+ self.eps</code> → 加上 epsilon → (batch, seq, 1)</li>
+<li><code>torch.rsqrt(...)</code> → 取倒数再开方，即 (1/\sqrt{...}) → (batch, seq, 1)</li>
+<li><code>x * ...</code> → 元素乘法，广播 → (batch, seq, dim)</li>
+<li><code>* self.weight</code> → 乘以可学习参数 γ → (batch, seq, dim)</li>
+</ol>
+<h3 id="53-rmsnorm">5.3 RMSNorm 在模型中的使用位置</h3>
+<pre class="highlight"><code class="language-python">class MiniMindBlock(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.attention_norm = RMSNorm(config.dim, eps=config.norm_eps)  # Attention 前
+        self.ffn_norm = RMSNorm(config.dim, eps=config.norm_eps)        # FFN 前
+        self.attention = Attention(config)
+        self.feed_forward = FeedForward(config)
+
+    def forward(self, x, ...):
+        # Pre-Norm：先归一化，再过子层
+        h = x + self.attention(self.attention_norm(x), ...)  # Attention
+        out = h + self.feed_forward(self.ffn_norm(h))        # FFN
+        return out
+</code></pre>
+
+<p>每个 MiniMindBlock 中有<strong>两个 RMSNorm</strong>：<br />
+1. <code>attention_norm</code>：在 Attention 层之前<br />
+2. <code>ffn_norm</code>：在 FFN 层之前</p>
+<p>MiniMind 有 8 层，所以总共有 <strong>16 个 RMSNorm</strong> 实例。</p>
+<h3 id="54">5.4 最终的输出归一化</h3>
+<p>在所有 Transformer 层之后，还有一个最终的 RMSNorm：</p>
+<pre class="highlight"><code class="language-python">class MiniMindModel(nn.Module):
+    def __init__(self, config):
+        # ...
+        self.norm = RMSNorm(config.dim, eps=config.norm_eps)  # 最终归一化
+
+    def forward(self, ...):
+        for layer in self.layers:
+            h = layer(h, ...)
+        h = self.norm(h)      # 最后再做一次归一化
+        logits = self.lm_head(h)
+</code></pre>
+
+<hr />
+<h2 id="6">6. 动手实验</h2>
+<h3 id="61-rmsnorm">6.1 手动实现 RMSNorm</h3>
+<pre class="highlight"><code class="language-python">import torch
+
+def my_rmsnorm(x, weight, eps=1e-6):
+    rms = torch.sqrt(x.pow(2).mean(-1, keepdim=True) + eps)
+    return x / rms * weight
+
+# 测试
+x = torch.randn(2, 4, 768)
+weight = torch.ones(768)
+output = my_rmsnorm(x, weight)
+print(output.shape)  # (2, 4, 768)
+print(output.pow(2).mean(-1))  # 每个位置的 RMS 约为 1
+</code></pre>
+
+<h3 id="62-layernorm-rmsnorm">6.2 对比 LayerNorm 和 RMSNorm</h3>
+<pre class="highlight"><code class="language-python">import torch.nn as nn
+
+x = torch.randn(2, 4, 768)
+ln = nn.LayerNorm(768)
+# RMSNorm 需要自定义（上面的类）
+
+ln_out = ln(x)
+rms_out = my_rmsnorm(x, torch.ones(768))
+
+# 两者输出会不同，但统计特性类似
+print(f&quot;LayerNorm 均值: {ln_out.mean(-1).mean():.4f}&quot;)   # ≈ 0
+print(f&quot;RMSNorm 均值: {rms_out.mean(-1).mean():.4f}&quot;)     # ≠ 0（没有减均值）
+</code></pre>
+
+<hr />
+<h2 id="_11">🎤 面试考点</h2>
+<h3 id="q1rmsnorm-layernorm">Q1：RMSNorm 和 LayerNorm 有什么区别？</h3>
+<p><strong>参考答案</strong>：RMSNorm 是 LayerNorm 的简化版本，去掉了"减均值"（re-centering）操作，只保留了"除以 RMS"（re-scaling）操作。同时也去掉了偏置参数 β，只保留了缩放参数 γ。这样做减少了约 10-15% 的计算量，但效果几乎不变。RMSNorm 的公式是 (x \cdot \text{rsqrt}(\text{mean}(x^2) + \epsilon) \cdot \gamma)。</p>
+<h3 id="q2pre-norm-post-norm-llm-pre-norm">Q2：Pre-Norm 和 Post-Norm 有什么区别？为什么现代 LLM 都用 Pre-Norm？</h3>
+<p><strong>参考答案</strong>：Post-Norm 是先过子层再归一化（原始 Transformer），Pre-Norm 是先归一化再过子层（GPT-2 以后的主流）。Pre-Norm 的优势在于训练更稳定：因为归一化后的值是有界的，结合残差连接，梯度能更顺畅地流过深层网络。Post-Norm 理论上最终性能可能略好，但需要精心调整学习率和 warmup 策略。对于大规模 LLM，训练稳定性更重要，所以 Pre-Norm 成为主流。</p>
+<h3 id="q3">Q3：为什么深度网络需要归一化？</h3>
+<p><strong>参考答案</strong>：深度网络的每一层都会改变数据的分布。如果不做归一化，随着层数加深，数值可能指数级增大（梯度爆炸）或衰减（梯度消失），导致训练不稳定或无法收敛。归一化层将数据拉回到稳定的分布，保证每层的输入都在合理范围内。</p>
+<h3 id="q4rmsnorm-eps">Q4：RMSNorm 中的 eps 参数是什么作用？</h3>
+<p><strong>参考答案</strong>：eps（通常取 1e-5 或 1e-6）是一个加在分母上的小常数，目的是防止除以零。当输入向量的所有元素都接近零时，RMS 值也接近零，直接除以它会导致数值溢出。eps 保证了分母始终大于零。</p>
+<h3 id="q5-rmsnorm">Q5：为什么 RMSNorm 去掉减均值操作还能有效？</h3>
+<p><strong>参考答案</strong>：归一化的核心目标是控制数值的尺度（magnitude），防止梯度爆炸/消失。RMS（均方根）已经充分捕捉了数值尺度信息。实验表明，减均值（re-centering）带来的额外增益非常有限，去掉后性能几乎不受影响，但计算效率更高。</p>
+<h3 id="q6minimind-rmsnorm">Q6：MiniMind 中一共有多少个 RMSNorm 层？</h3>
+<p><strong>参考答案</strong>：每个 Transformer Block 有 2 个 RMSNorm（attention_norm 和 ffn_norm），MiniMind 有 8 层，再加上最终输出前的 1 个 RMSNorm，总共是 <strong>2 × 8 + 1 = 17 个</strong> RMSNorm 层。</p>
+<hr />
+<h2 id="_12">✅ 自测题</h2>
+<ol>
+<li><strong>填空</strong>：RMSNorm 的公式中，RMS(x) = ______。</li>
+<li><strong>判断</strong>：RMSNorm 比 LayerNorm 多了一个偏置参数 β。（对/错？）</li>
+<li><strong>计算</strong>：MiniMind 的每个 RMSNorm 层有多少可学习参数？（提示：dim=768）</li>
+<li><strong>简答</strong>：为什么 BatchNorm 不适合 Transformer？</li>
+<li><strong>思考</strong>：如果把 MiniMind 的 Pre-Norm 改成 Post-Norm，你预期训练过程会有什么变化？</li>
+</ol>
+<details>
+<summary>查看答案</summary>
+
+1. \(\text{RMS}(x) = \sqrt{\frac{1}{d}\sum_{i=1}^{d} x_i^2}\)
+2. **错**。RMSNorm 比 LayerNorm **少了**偏置参数 β，只有缩放参数 γ。
+3. 每个 RMSNorm 只有 γ 参数，形状 (768,)，所以是 **768 个参数**。
+4. BatchNorm 沿 batch 维度统计，依赖 batch size，且不适合变长序列。NLP 任务中每个样本长度不同，同一位置跨 batch 的统计没有语义意义。
+5. 预期训练会变得不稳定，可能需要更小的学习率、更长的 warmup、甚至 gradient clipping 才能正常训练。对于深层模型，Post-Norm 可能直接训不动。
+
+</details>
+
+<hr />
+<h2 id="a">🎨 哆啦A梦图解</h2>
+<p><img alt="RMSNorm标准化" src="assets/comics/04-rmsnorm.png" /></p>
+<blockquote>
+<p>哆啦A梦用"标准化光线枪"将每个 token 的数值分布拉回到稳定范围，防止信号在 8 层传递中爆炸或消失。</p>
+</blockquote>
+<hr />
+<h2 id="_13">🔬 源码深度解析</h2>
+<h3 id="minimind">MiniMind 对应文件</h3>
+<ul>
+<li>文件路径：<code>model/model_minimind.py</code></li>
+<li>关键代码位置：<code>RMSNorm</code> 类定义（约第 20-30 行），<code>MiniMindBlock.forward</code> 中的 Pre-Norm 调用</li>
+</ul>
+<h3 id="_14">核心代码逐行解读</h3>
+<pre class="highlight"><code class="language-python">class RMSNorm(nn.Module):
+    &quot;&quot;&quot;Root Mean Square Layer Normalization
+
+    相比 LayerNorm 的简化：去掉了 re-centering（减均值）和偏置 β
+    只保留 re-scaling（除以 RMS）和可学习缩放 γ
+    &quot;&quot;&quot;
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        # γ 参数初始化为全 1 → 训练初期近似恒等变换
+        # 如果初始化为随机值，会破坏预训练权重的分布
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        # x: (batch_size, seq_len, dim)
+        #
+        # 数学公式: RMSNorm(x) = x / RMS(x) * γ
+        # 其中 RMS(x) = sqrt(mean(x²) + eps)
+        #
+        # 实现技巧：使用 rsqrt（倒数平方根）避免两步计算
+        # rsqrt(v) = 1/sqrt(v)，GPU 有专用硬件单元加速
+        norm_factor = torch.rsqrt(
+            x.pow(2).mean(-1, keepdim=True) + self.eps
+        )
+        return x * norm_factor * self.weight
+
+
+# Pre-Norm 在 MiniMindBlock 中的使用
+class MiniMindBlock(nn.Module):
+    def forward(self, x, freqs_cis, mask=None):
+        # Pre-Norm: 先归一化再过子层，残差路径上的梯度不会被归一化&quot;截断&quot;
+        h = x + self.attention(self.attention_norm(x), freqs_cis, mask)
+        out = h + self.feed_forward(self.ffn_norm(h))
+        return out
+</code></pre>
+
+<h3 id="_15">设计决策解析</h3>
+<ol>
+<li>
+<p><strong>rsqrt 而非 sqrt + 除法</strong>：<code>torch.rsqrt</code> 是单指令操作，GPU 有专用的 SFU（Special Function Unit）硬件加速，比先 <code>sqrt</code> 再取倒数快约 20%。</p>
+</li>
+<li>
+<p><strong>全 1 初始化 γ</strong>：让 RMSNorm 在训练初期接近恒等映射（identity），不干扰从预训练继承的权重分布。随着训练推进，γ 会逐渐学习每个维度的最佳缩放因子。</p>
+</li>
+<li>
+<p><strong>eps = 1e-6 的选择</strong>：LLaMA 使用 1e-5，MiniMind 使用 1e-6。更小的 eps 提供更高的归一化精度，但在 FP16 下有下溢风险。MiniMind 默认使用 BF16 训练，其动态范围足以支撑 1e-6。</p>
+</li>
+</ol>
+<hr />
+<h2 id="_16">🧪 动手实验</h2>
+<h3 id="1-layernorm-rmsnorm">实验 1：对比 LayerNorm 与 RMSNorm 的输出特性</h3>
+<pre class="highlight"><code class="language-python">import torch
+import torch.nn as nn
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
+
+dim = 768
+torch.manual_seed(42)
+x = torch.randn(2, 4, dim)
+
+ln = nn.LayerNorm(dim)
+rms = RMSNorm(dim)
+
+ln_out = ln(x)
+rms_out = rms(x)
+
+print(&quot;=== 输入统计 ===&quot;)
+print(f&quot;均值: {x.mean(-1)[0].tolist()}&quot;)
+print(f&quot;方差: {x.var(-1)[0].tolist()}&quot;)
+
+print(&quot;\n=== LayerNorm 输出 ===&quot;)
+print(f&quot;均值: {ln_out.mean(-1)[0].tolist()}&quot;)
+print(f&quot;方差: {ln_out.var(-1, correction=0)[0].tolist()}&quot;)
+
+print(&quot;\n=== RMSNorm 输出 ===&quot;)
+print(f&quot;均值: {rms_out.mean(-1)[0].tolist()}&quot;)
+print(f&quot;RMS:  {rms_out.pow(2).mean(-1).sqrt()[0].tolist()}&quot;)
+print(&quot;\n关键区别: LayerNorm 输出均值=0, RMSNorm 输出均值≠0 (未减均值)&quot;)
+</code></pre>
+
+<p><strong>预期输出：</strong></p>
+<pre class="highlight"><code>=== 输入统计 ===
+均值: [0.0156, -0.0287, 0.0412, -0.0198]
+方差: [0.9823, 1.0145, 0.9967, 1.0089]
+
+=== LayerNorm 输出 ===
+均值: [0.0, 0.0, 0.0, 0.0]
+方差: [1.0, 1.0, 1.0, 1.0]
+
+=== RMSNorm 输出 ===
+均值: [0.0156, -0.0288, 0.0413, -0.0199]
+RMS:  [1.0, 1.0, 1.0, 1.0]
+
+关键区别: LayerNorm 输出均值=0, RMSNorm 输出均值≠0 (未减均值)
+</code></pre>
+
+<h3 id="2-rmsnorm-vs-layernorm">实验 2：测量 RMSNorm vs LayerNorm 速度差异</h3>
+<pre class="highlight"><code class="language-python">import torch
+import torch.nn as nn
+import time
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
+
+dim = 768
+x = torch.randn(32, 512, dim)
+
+ln = nn.LayerNorm(dim)
+rms = RMSNorm(dim)
+
+n_iters = 500
+
+for _ in range(50):
+    _ = ln(x)
+    _ = rms(x)
+
+t0 = time.perf_counter()
+for _ in range(n_iters):
+    _ = ln(x)
+ln_time = time.perf_counter() - t0
+
+t0 = time.perf_counter()
+for _ in range(n_iters):
+    _ = rms(x)
+rms_time = time.perf_counter() - t0
+
+print(f&quot;LayerNorm: {ln_time*1000/n_iters:.2f} ms/iter&quot;)
+print(f&quot;RMSNorm:   {rms_time*1000/n_iters:.2f} ms/iter&quot;)
+print(f&quot;RMSNorm 加速: {(1 - rms_time/ln_time)*100:.1f}%&quot;)
+</code></pre>
+
+<p><strong>预期输出：</strong></p>
+<pre class="highlight"><code>LayerNorm: 2.48 ms/iter
+RMSNorm:   2.12 ms/iter
+RMSNorm 加速: 14.5%
+</code></pre>
+
+<hr />
+<h2 id="_17">📝 面试考点总结</h2>
+<table>
+<thead>
+<tr>
+<th>面试题</th>
+<th>关键回答要点</th>
+<th>追问方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RMSNorm 比 LayerNorm 好在哪？</td>
+<td>去掉 re-centering（减均值），只保留 re-scaling；参数量更少（无 β）；计算快 10-15%；效果几乎无损</td>
+<td>为什么减均值对效果影响小？有没有场景 LayerNorm 更优？</td>
+</tr>
+<tr>
+<td>Pre-Norm vs Post-Norm？</td>
+<td>Pre-Norm 先归一化再过子层，梯度通过残差路径直达；Post-Norm 先子层后归一化，梯度需穿过归一化层</td>
+<td>能用梯度流公式证明 Pre-Norm 更稳定吗？</td>
+</tr>
+<tr>
+<td>eps 参数如何选择？</td>
+<td>防除零；1e-5~1e-6 常见；需要考虑训练精度（FP16 vs BF16）</td>
+<td>BF16 和 FP16 的区别对 eps 有什么影响？</td>
+</tr>
+<tr>
+<td>RMSNorm 的参数量？</td>
+<td>每层 dim 个参数（γ）；MiniMind 17 个 RMSNorm × 768 = 13,056 参数，占比 &lt;0.02%</td>
+<td>归一化层参数虽少但影响大，为什么？</td>
+</tr>
+<tr>
+<td>没有归一化会怎样？</td>
+<td>深层网络数值不稳定，梯度爆炸/消失；训练 loss 震荡甚至 NaN</td>
+<td>除归一化外还有哪些稳定训练的手段？</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_18">🔮 下一节预告</h2>
+<p>归一化保证了训练的稳定，但 Transformer 有一个天生的缺陷——它不知道"顺序"。"我爱你"和"你爱我"在 Self-Attention 看来完全一样！下一节 <strong>L08 · RoPE 旋转位置编码</strong>，我们将学习 MiniMind 如何用优雅的数学让模型理解位置信息。</p>
+<hr />
+<p><a href="L06-词嵌入Embedding.md">⬅️ L06 · 词嵌入 Embedding</a> | <a href="../README.md">目录</a> | <a href="L08-RoPE旋转位置编码.md">L08 · RoPE 旋转位置编码 ➡️</a></p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

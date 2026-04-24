@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L11 - 数据处理流水线 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l11-">L11 - 数据处理流水线</h1>
+<blockquote>
+<p><em>"数据是模型的食粮"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解 LLM 不同训练阶段的数据格式（预训练、SFT、DPO）</li>
+<li>掌握 Dataset 和 DataLoader 的工作原理</li>
+<li>理解 padding、truncation 和 max_seq_len 的含义</li>
+<li><strong>重点掌握 Loss Mask 机制</strong>——预训练和 SFT 的核心区别之一</li>
+<li>理解 batch_size 与 gradient_accumulation_steps 的关系</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>Python 基础，了解 JSON/JSONL 格式</li>
+<li>PyTorch 基础（Tensor 操作）</li>
+<li>了解 Tokenizer 的工作原理（参考 L10）</li>
+</ul>
+<hr />
+<h2 id="1-llm">1. LLM 训练数据的格式</h2>
+<p>训练 LLM 不同阶段需要不同格式的数据。可以把它想象成烹饪——不同菜式需要不同的食材加工方式。</p>
+<h3 id="11">1.1 预训练数据格式</h3>
+<p>预训练数据是最"原始"的——就是一段一段的纯文本。MiniMind 使用 JSONL 格式（每行一个 JSON 对象）：</p>
+<pre class="highlight"><code class="language-json">{&quot;text&quot;: &quot;人工智能（Artificial Intelligence，简称AI）是计算机科学的一个分支...&quot;}
+{&quot;text&quot;: &quot;量子力学是物理学的一个基本理论，描述了微观粒子的行为...&quot;}
+</code></pre>
+
+<p>每一行就是一个训练样本。模型的任务是：<strong>给定前面的 token，预测下一个 token</strong>（Next Token Prediction）。</p>
+<p>MiniMind 的预训练数据集：<br />
+| 数据集 | 文件名 | 大小 | 说明 |<br />
+|--------|--------|------|------|<br />
+| 小规模 | <code>pretrain_t2t_mini.jsonl</code> | 1.2GB | 快速实验用 |<br />
+| 全量 | <code>pretrain_t2t.jsonl</code> | 10GB | 完整训练用 |</p>
+<h3 id="12-sft">1.2 SFT（监督微调）数据格式</h3>
+<p>SFT 数据是<strong>多轮对话</strong>格式，让模型学会"你问我答"：</p>
+<pre class="highlight"><code class="language-json">{
+  &quot;conversations&quot;: [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;你是一个有用的助手。&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;什么是机器学习？&quot;},
+    {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;机器学习是人工智能的一个子领域...&quot;}
+  ]
+}
+</code></pre>
+
+<p>关键区别：SFT 数据有明确的<strong>角色划分</strong>（system/user/assistant），模型需要学会根据用户输入生成合适的回复。</p>
+<p>MiniMind 的 SFT 数据集：<br />
+| 数据集 | 文件名 | 大小 | 说明 |<br />
+|--------|--------|------|------|<br />
+| 小规模 | <code>sft_t2t_mini.jsonl</code> | 1.6GB | 快速实验用 |<br />
+| 全量 | <code>sft_t2t.jsonl</code> | 14GB | 完整训练用，包含 Tool Call 数据 |</p>
+<h3 id="13-dpo">1.3 DPO（偏好对齐）数据格式</h3>
+<p>DPO 数据包含"好回答"和"坏回答"的对比：</p>
+<pre class="highlight"><code class="language-json">{
+  &quot;chosen&quot;: [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;解释一下量子纠缠&quot;},
+    {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;量子纠缠是一种量子力学现象...（准确详细的回答）&quot;}
+  ],
+  &quot;rejected&quot;: [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;解释一下量子纠缠&quot;},
+    {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;量子纠缠就是两个粒子心灵感应...（不准确的回答）&quot;}
+  ]
+}
+</code></pre>
+
+<p>MiniMind 的对齐数据集：<br />
+| 数据集 | 文件名 | 大小 |<br />
+|--------|--------|------|<br />
+| DPO | <code>dpo.jsonl</code> | 53MB |<br />
+| RLAIF | <code>rlaif.jsonl</code> | 24MB |</p>
+<hr />
+<h2 id="2-dataset-dataloader">2. Dataset 和 DataLoader</h2>
+<h3 id="21-dataset">2.1 Dataset：数据的"仓库"</h3>
+<p>PyTorch 的 <code>Dataset</code> 类定义了数据集的结构。你需要实现两个核心方法：</p>
+<pre class="highlight"><code class="language-python">class PretrainDataset(Dataset):
+    def __init__(self, data_path, tokenizer, max_length):
+        # 加载数据
+        self.data = []
+        with open(data_path, 'r') as f:
+            for line in f:
+                self.data.append(json.loads(line))
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        text = self.data[idx]['text']
+        # 将文本转换为 token ids
+        token_ids = self.tokenizer.encode(text)
+        # 截断到 max_length
+        token_ids = token_ids[:self.max_length]
+        return token_ids
+</code></pre>
+
+<p><code>__getitem__</code> 每次返回一个样本，这就像是从仓库里取出一箱食材。</p>
+<h3 id="22-dataloader">2.2 DataLoader：数据的"传送带"</h3>
+<p><code>DataLoader</code> 负责把 Dataset 中的数据<strong>批量</strong>送给模型：</p>
+<pre class="highlight"><code class="language-python">dataloader = DataLoader(
+    dataset,
+    batch_size=32,          # 每批 32 个样本
+    shuffle=True,           # 打乱顺序
+    num_workers=4,          # 4 个进程并行加载
+    collate_fn=collate_fn   # 自定义批量整合函数
+)
+</code></pre>
+
+<p>为什么需要 <code>collate_fn</code>？因为不同样本的长度可能不同，需要统一处理（padding）。</p>
+<hr />
+<h2 id="3-padding-truncation">3. Padding 和 Truncation 策略</h2>
+<h3 id="31-padding">3.1 为什么需要 Padding？</h3>
+<p>GPU 进行并行计算时，要求同一 batch 内所有序列长度相同。但自然语言文本长度参差不齐，所以需要 padding——用特殊的 pad token 填充短序列。</p>
+<pre class="highlight"><code>样本 1: [我, 喜, 欢, 学, 习, AI]          → 长度 6
+样本 2: [今, 天, 天, 气, 好]              → 长度 5
+样本 3: [机, 器, 学, 习, 是, 一, 个, 领, 域] → 长度 9
+
+Padding 后（max_length=9）:
+样本 1: [我, 喜, 欢, 学, 习, AI, PAD, PAD, PAD]
+样本 2: [今, 天, 天, 气, 好, PAD, PAD, PAD, PAD]
+样本 3: [机, 器, 学, 习, 是, 一, 个, 领, 域]
+</code></pre>
+
+<h3 id="32-truncation">3.2 Truncation（截断）</h3>
+<p>当文本超过 <code>max_seq_len</code> 时，直接截断：</p>
+<pre class="highlight"><code class="language-python">token_ids = token_ids[:max_seq_len]
+</code></pre>
+
+<h3 id="33-max_seq_len">3.3 max_seq_len 的含义与选择</h3>
+<p><code>max_seq_len</code>（最大序列长度）是模型能处理的最长 token 序列。MiniMind 默认 <code>max_seq_len=512</code>。</p>
+<p>选择原则：<br />
+- <strong>太短</strong>：信息被截断，模型无法学到长距离依赖<br />
+- <strong>太长</strong>：显存占用剧增（Attention 的计算复杂度是 (O(n^2))），训练变慢<br />
+- <strong>经验法则</strong>：覆盖 95% 以上的样本长度即可</p>
+<hr />
+<h2 id="4-loss-mask-sft">4. Loss Mask：预训练与 SFT 的关键区别</h2>
+<p><strong>这是面试高频考点，请务必理解透彻。</strong></p>
+<h3 id="41-loss-mask">4.1 什么是 Loss Mask？</h3>
+<p>Loss Mask 是一个与 token 序列等长的 0/1 向量，用来<strong>控制哪些 token 参与 loss 计算</strong>。</p>
+<ul>
+<li><code>1</code> 表示该位置的 loss 参与计算</li>
+<li><code>0</code> 表示忽略该位置的 loss</li>
+</ul>
+<h3 id="42-loss-mask">4.2 预训练的 Loss Mask</h3>
+<p>预训练阶段，<strong>所有 token 都参与 loss 计算</strong>（除了 padding）：</p>
+<pre class="highlight"><code>文本:      [我, 喜, 欢, 学, 习, PAD, PAD]
+Loss Mask: [1,  1,  1,  1,  1,  0,   0  ]
+</code></pre>
+
+<p>这很合理——预训练的目标是学习整个语言的统计规律，每个 token 都有价值。</p>
+<h3 id="43-sft-loss-mask">4.3 SFT 的 Loss Mask（重点！）</h3>
+<p>SFT 阶段，<strong>只计算 assistant 回复部分的 loss</strong>，prompt（system + user）部分的 loss 被 mask 掉：</p>
+<pre class="highlight"><code>Token序列: [&lt;|im_start|&gt;, system, ..., &lt;|im_end|&gt;, &lt;|im_start|&gt;, user, 什么是AI?, &lt;|im_end|&gt;, &lt;|im_start|&gt;, assistant, AI是..., &lt;|im_end|&gt;]
+Loss Mask: [0,           0,      ..., 0,          0,           0,    0, ..., 0, 0,          0,         1, ..., 1,         1        ]
+</code></pre>
+
+<h3 id="44-sft-loss">4.4 为什么 SFT 只计算回答部分的 loss？</h3>
+<p>这是面试必考题。核心原因：</p>
+<ol>
+<li><strong>训练目标不同</strong>：SFT 的目标是让模型学会"如何回答"，而不是学会"如何提问"</li>
+<li><strong>避免"学歪"</strong>：如果也计算 prompt 的 loss，模型可能会倾向于生成像用户提问的文本</li>
+<li><strong>信号纯度</strong>：只监督回答部分，梯度信号更纯净，训练更高效</li>
+<li><strong>类比</strong>：就像考试只判答案对不对，不判你看题看得对不对</li>
+</ol>
+<h3 id="45-loss-mask">4.5 Loss Mask 的代码实现</h3>
+<pre class="highlight"><code class="language-python">def create_sft_loss_mask(input_ids, tokenizer):
+    &quot;&quot;&quot;为SFT创建loss mask，只在assistant回复部分计算loss&quot;&quot;&quot;
+    loss_mask = torch.zeros_like(input_ids, dtype=torch.float)
+    in_assistant = False
+
+    for i, token_id in enumerate(input_ids):
+        if is_assistant_start(token_id, tokenizer):
+            in_assistant = True
+            continue
+        if is_turn_end(token_id, tokenizer):
+            if in_assistant:
+                loss_mask[i] = 1.0  # &lt;|im_end|&gt; 也计入 loss
+            in_assistant = False
+            continue
+        if in_assistant:
+            loss_mask[i] = 1.0
+
+    return loss_mask
+</code></pre>
+
+<hr />
+<h2 id="5-batch-size">5. Batch Size 与梯度累积</h2>
+<h3 id="51">5.1 为什么需要梯度累积？</h3>
+<p>理想的 batch size 可能很大（比如 256），但 GPU 显存有限，一次只能放下 batch_size=16。怎么办？</p>
+<p><strong>梯度累积</strong>（Gradient Accumulation）：把一个大 batch 拆成多个小 batch，累加梯度后再更新参数。</p>
+<p>$$\text{有效 batch size} = \text{batch_size} \times \text{gradient_accumulation_steps} \times \text{num_gpus}$$</p>
+<p>例如：batch_size=16，gradient_accumulation_steps=8，单卡训练：</p>
+<p>$$\text{有效 batch size} = 16 \times 8 \times 1 = 128$$</p>
+<h3 id="52">5.2 梯度累积的实现</h3>
+<pre class="highlight"><code class="language-python">for step, batch in enumerate(dataloader):
+    loss = model(batch)
+    loss = loss / gradient_accumulation_steps  # 除以累积步数，保证梯度量级一致
+    loss.backward()  # 累加梯度
+
+    if (step + 1) % gradient_accumulation_steps == 0:
+        optimizer.step()   # 更新参数
+        optimizer.zero_grad()  # 清零梯度
+</code></pre>
+
+<p>关键点：<code>loss / gradient_accumulation_steps</code> 这一步<strong>必不可少</strong>。如果不除，累积的梯度会比正常大 N 倍，相当于放大了学习率。</p>
+<h3 id="53-batch-size">5.3 Batch Size 选择的影响</h3>
+<table>
+<thead>
+<tr>
+<th>Batch Size</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>过小</td>
+<td>显存友好，正则化效果</td>
+<td>训练不稳定，收敛慢</td>
+</tr>
+<tr>
+<td>过大</td>
+<td>训练稳定，梯度估计准确</td>
+<td>显存大，泛化可能差</td>
+</tr>
+<tr>
+<td>适中</td>
+<td>平衡速度和效果</td>
+<td>需要实验确定</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 数据清洗和去重</h2>
+<p>高质量的数据是训练好模型的前提。常见的数据处理步骤：</p>
+<ol>
+<li><strong>去重</strong>：删除完全相同或高度相似的样本（MinHash、SimHash）</li>
+<li><strong>过滤</strong>：去除低质量文本（过短、乱码、广告）</li>
+<li><strong>敏感信息清理</strong>：去除个人隐私信息</li>
+<li><strong>语言过滤</strong>：保留目标语言的文本</li>
+<li><strong>格式标准化</strong>：统一编码、换行符等</li>
+</ol>
+<p>MiniMind 的训练数据已经经过清洗和去重处理，可以直接使用。在实际工程中，数据清洗通常占据整个项目 60% 以上的时间。</p>
+<hr />
+<h2 id="7-minimind">7. MiniMind 源码解读</h2>
+<h3 id="71">7.1 关键文件</h3>
+<ul>
+<li><code>dataset/</code> 目录：存放所有训练数据</li>
+<li><code>trainer/train_pretrain.py</code>：预训练数据加载逻辑</li>
+<li><code>trainer/train_full_sft.py</code>：SFT 数据加载逻辑</li>
+<li><code>trainer/train_dpo.py</code>：DPO 数据加载逻辑</li>
+</ul>
+<h3 id="72">7.2 数据加载流程</h3>
+<p>MiniMind 的数据加载流程大致如下：</p>
+<pre class="highlight"><code>JSONL文件 → 逐行读取JSON → Tokenizer编码 → Padding/Truncation → 构造Loss Mask → DataLoader批量输出
+</code></pre>
+
+<p>在 <code>train_pretrain.py</code> 中，预训练数据的处理：</p>
+<pre class="highlight"><code class="language-python"># 伪代码，展示核心逻辑
+def process_pretrain_sample(text, tokenizer, max_length):
+    token_ids = tokenizer.encode(text)
+    # 构造输入和标签：标签就是输入右移一位
+    input_ids = token_ids[:-1]
+    labels = token_ids[1:]
+    # loss_mask 全部为 1（所有token都参与loss计算）
+    loss_mask = [1] * len(labels)
+    return input_ids, labels, loss_mask
+</code></pre>
+
+<p>在 <code>train_full_sft.py</code> 中，SFT 数据的处理：</p>
+<pre class="highlight"><code class="language-python"># 伪代码，展示核心逻辑
+def process_sft_sample(conversations, tokenizer, max_length):
+    full_tokens = []
+    loss_mask = []
+    for turn in conversations:
+        role = turn['role']
+        content_tokens = tokenizer.encode(turn['content'])
+        full_tokens.extend(content_tokens)
+        if role == 'assistant':
+            loss_mask.extend([1] * len(content_tokens))  # assistant 部分计入 loss
+        else:
+            loss_mask.extend([0] * len(content_tokens))  # 其他部分不计入 loss
+    return full_tokens, loss_mask
+</code></pre>
+
+<hr />
+<h2 id="_3">🎤 面试考点</h2>
+<h3 id="q1-sft-prompt-loss">Q1: 为什么 SFT 不计算 prompt 部分的 loss？</h3>
+<p><strong>答</strong>：SFT 的目标是训练模型生成高质量回复，而不是学会提问。如果计算 prompt 的 loss，模型的梯度信号会被"如何生成提问"的信息干扰，降低学习效率。只在 assistant 部分计算 loss，能让梯度信号更加纯净，模型更快学会"如何回答"。</p>
+<h3 id="q2-padding">Q2: Padding 放在左边还是右边？有什么区别？</h3>
+<p><strong>答</strong>：<br />
+- <strong>训练时</strong>通常用右 padding（在序列末尾填充），因为 causal attention mask 从左到右，右边填充不影响前面 token 的计算<br />
+- <strong>推理时</strong>做 batch inference 可能用左 padding，确保最后一个有效 token 对齐，便于 generation<br />
+- MiniMind 训练时使用右 padding</p>
+<h3 id="q3-accumulation_steps">Q3: 什么是梯度累积？为什么要除以 accumulation_steps？</h3>
+<p><strong>答</strong>：梯度累积是将多个 mini-batch 的梯度累加后再更新参数的技术，用于在显存不足时模拟大 batch 训练。必须除以 accumulation_steps 是因为 <code>loss.backward()</code> 会把梯度<strong>加到</strong>现有梯度上，如果不做归一化，累积后的梯度会是正常值的 N 倍，相当于隐式地放大了 N 倍学习率。</p>
+<h3 id="q4-max_seq_len">Q4: max_seq_len 设置过大会有什么问题？</h3>
+<p><strong>答</strong>：<br />
+1. 显存占用急剧增加：Self-Attention 的计算和存储复杂度为 (O(n^2))<br />
+2. 训练速度下降<br />
+3. 大部分样本可能远短于 max_seq_len，导致大量无效的 padding 计算<br />
+4. 可能引入位置编码外推的问题</p>
+<h3 id="q5-sft">Q5: 预训练和 SFT 的数据处理有何不同？</h3>
+<p><strong>答</strong>：<br />
+- <strong>预训练</strong>：数据是纯文本，所有 token 都参与 loss 计算，任务是无差别的 Next Token Prediction<br />
+- <strong>SFT</strong>：数据是多轮对话格式，需要应用 chat_template 格式化，使用 Loss Mask 只在 assistant 回复部分计算 loss</p>
+<h3 id="q6-dpo-sft">Q6: DPO 数据和 SFT 数据有什么区别？</h3>
+<p><strong>答</strong>：SFT 数据只有一个"标准答案"，模型通过模仿学习。DPO 数据包含 chosen（好回答）和 rejected（坏回答）的对比对，模型通过对比学习，学会区分好坏回答，从而进行偏好对齐。</p>
+<hr />
+<h2 id="_4">✅ 自测题</h2>
+<ol>
+<li>请画出从原始 JSONL 文件到 DataLoader 输出一个 batch 的完整流程图。</li>
+<li>给定以下对话，写出 Loss Mask：<br />
+<code>System: 你是助手
+   User: 1+1=?
+   Assistant: 等于2</code></li>
+<li>如果 batch_size=8，gradient_accumulation_steps=4，使用 2 张 GPU（DDP），有效 batch size 是多少？</li>
+<li>为什么说"数据质量比数据数量更重要"？请结合 SFT 阶段举例说明。</li>
+<li>padding token 应该参与 loss 计算吗？为什么？</li>
+</ol>
+<hr />
+<h2 id="_5">⏭️ 下一节预告</h2>
+<p><strong>L12 - 预训练 Pretrain</strong>：数据准备好了，接下来我们要用它来"喂养"模型了！我们将深入理解预训练的目标函数（交叉熵损失）、学习率调度策略、混合精度训练等关键技术，并跟读 MiniMind 的 <code>train_pretrain.py</code> 源码。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

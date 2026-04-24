@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L22 - 面试通关指南 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l22-">L22 - 面试通关指南</h1>
+<blockquote>
+<p><strong>"把项目写进简历，拿下Offer"</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">本节目标</h2>
+<ol>
+<li>学会在简历中精准描述 MiniMind 项目</li>
+<li>准备好 30秒/1分钟/3分钟 的项目介绍</li>
+<li>掌握面试官最常问的 Top 20 问题的标准答案</li>
+<li>学会应对深挖追问</li>
+<li>了解加分项和面试技巧</li>
+</ol>
+<hr />
+<h2 id="_2">前置知识</h2>
+<ul>
+<li>完成 L01-L21 的所有课程学习</li>
+<li>对 MiniMind 的整体架构和训练流程有清晰认知</li>
+<li>实际动手跑过训练或推理（强烈建议）</li>
+</ul>
+<hr />
+<h2 id="minimind">一、简历中如何描述 MiniMind 项目</h2>
+<h3 id="11-star">1.1 STAR 法则</h3>
+<p>简历描述项目应遵循 STAR 法则：</p>
+<table>
+<thead>
+<tr>
+<th>要素</th>
+<th>含义</th>
+<th>对应 MiniMind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>S</strong>ituation</td>
+<td>背景</td>
+<td>大模型技术快速发展，但大部分项目门槛高</td>
+</tr>
+<tr>
+<td><strong>T</strong>ask</td>
+<td>任务</td>
+<td>从零实现一个完整的小型 LLM</td>
+</tr>
+<tr>
+<td><strong>A</strong>ction</td>
+<td>行动</td>
+<td>实现了 Transformer 架构、预训练、SFT、DPO/PPO、MoE 等</td>
+</tr>
+<tr>
+<td><strong>R</strong>esult</td>
+<td>结果</td>
+<td>64M 参数模型，支持多轮对话、Tool Calling 等</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 简历描述示例</h3>
+<h4 id="2-3">简洁版（适合简历项目经历，2-3 行）</h4>
+<pre class="highlight"><code>MiniMind - 从零实现的小型大语言模型                              2024.xx - 2024.xx
+• 基于 PyTorch 从零实现 64M 参数的 Decoder-Only Transformer，完成预训练、SFT、
+  DPO/RLHF 全流程训练，支持多轮对话和工具调用
+• 实现 RoPE、GQA、SwiGLU、RMSNorm、KV-Cache 等核心技术，
+  并扩展 MoE 架构（198M/A64M，4 experts/top-1）
+</code></pre>
+
+<h4 id="4-5">标准版（适合详细简历或项目说明，4-5 行）</h4>
+<pre class="highlight"><code>MiniMind - 全流程大语言模型实践                                  2024.xx - 2024.xx
+• 基于 PyTorch 从零实现 Decoder-Only Transformer (64M 参数)，采用 RoPE 位置编码、
+  GQA 注意力机制、SwiGLU 激活函数、RMSNorm 归一化等主流 LLM 技术
+• 完成预训练(3B tokens)→SFT(多轮对话)→DPO(偏好对齐)→PPO/GRPO(强化学习)全链路训练
+• 实现 MoE 混合专家扩展版本(4 experts/top-1, 198M/A64M)，支持 KV-Cache 推理优化、
+  YaRN 长度外推(512K tokens)
+• 部署兼容 OpenAI API 接口，支持 ollama/vLLM/llama.cpp 推理，
+  实现 Tool Calling 和 Adaptive Thinking 功能
+</code></pre>
+
+<h4 id="6-8">详细版（适合项目文档或面试准备材料，6-8 行）</h4>
+<pre class="highlight"><code>MiniMind - 端到端大语言模型全流程实践                             2024.xx - 2024.xx
+• 基于 PyTorch 从零构建 Decoder-Only Transformer 架构 (64M 参数, 8 层, 512 维隐藏层)，
+  集成 RoPE 旋转位置编码、GQA 分组查询注意力(8Q/2KV)、SwiGLU 激活函数、RMSNorm 归一化
+• 构建自定义 BPE 分词器(词表 6400)，基于 3B tokens 中文语料完成预训练，
+  使用 LoRA(r=16) 进行高效参数微调
+• 实现 SFT 多轮对话微调(Loss Mask 机制)、DPO 偏好对齐、PPO/GRPO 强化学习训练，
+  使用 InternLM2-1.8B-Reward 作为奖励模型
+• 扩展 MoE 混合专家架构(4 experts/top-1, 198M 总参/64M 激活参)，
+  实现负载均衡 Loss 防止专家塌缩
+• 实现 KV-Cache 推理加速、YaRN RoPE 长度外推(32K→512K)、
+  多种解码策略(Top-K/Top-P/Temperature/Repetition Penalty)
+• 部署 OpenAI 兼容 API，支持 ollama/vLLM/llama.cpp 推理框架，
+  实现 Tool Calling (&lt;tool_call&gt;标签) 和 Adaptive Thinking (&lt;think&gt;标签) 功能
+</code></pre>
+
+<h3 id="13">1.3 简历描述注意事项</h3>
+<ol>
+<li><strong>量化</strong>：尽量用数字说话（64M 参数、3B tokens、4 experts 等）</li>
+<li><strong>技术关键词</strong>：面试官搜简历时会用关键词匹配，确保覆盖核心技术名称</li>
+<li><strong>层次感</strong>：从架构 → 训练 → 优化 → 部署，展示完整能力链</li>
+<li><strong>诚实</strong>：只写你真正理解的部分，不要写"参与 xxx"</li>
+</ol>
+<hr />
+<h2 id="_3">二、面试中如何介绍项目</h2>
+<h3 id="21-30">2.1 30 秒版本（电梯演讲）</h3>
+<blockquote>
+<p>"我做了一个叫 MiniMind 的项目，是从零用 PyTorch 实现的小型大语言模型，64M 参数。我完成了从预训练、SFT 微调到 DPO 和 PPO 强化学习的全流程训练，还实现了 MoE 混合专家架构。目前支持多轮对话、工具调用等功能，可以通过 ollama 等框架部署。通过这个项目，我深入理解了 LLM 的核心技术和训练范式。"</p>
+</blockquote>
+<h3 id="22-1">2.2 1 分钟版本</h3>
+<blockquote>
+<p>"我的项目叫 MiniMind，是一个从零构建的小型大语言模型。</p>
+<p><strong>架构方面</strong>，我用 PyTorch 实现了完整的 Decoder-Only Transformer，集成了 RoPE 位置编码、GQA 注意力、SwiGLU 激活函数这些主流 LLM 技术，模型只有 64M 参数。</p>
+<p><strong>训练方面</strong>，我走完了 LLM 的全部训练流程：预训练用了约 3B tokens 的中文语料，然后做了 SFT 多轮对话微调，接着用 DPO 做偏好对齐，还用 PPO 和 GRPO 做了强化学习训练。</p>
+<p><strong>扩展方面</strong>，我实现了 MoE 混合专家架构——4 个专家、Top-1 路由，总参数 198M 但激活参数只有 64M。推理上支持 KV-Cache 加速和 YaRN 长度外推。</p>
+<p><strong>部署方面</strong>，模型兼容 OpenAI API，支持 ollama、vLLM、llama.cpp 等推理框架，还实现了 Tool Calling 和自适应思考功能。"</p>
+</blockquote>
+<h3 id="23-3">2.3 3 分钟版本</h3>
+<p>在 1 分钟版本基础上，按面试官的兴趣点展开。<strong>关键原则</strong>：</p>
+<ol>
+<li>先给全景，再深入细节</li>
+<li>准备好每个技术点的"2 句话解释"</li>
+<li>主动引导到你最擅长的方向</li>
+</ol>
+<blockquote>
+<p>"... [1 分钟版本内容] ...</p>
+<p>我重点讲讲几个有挑战性的部分：</p>
+<p><strong>RoPE 位置编码</strong>，我研究了它的数学推导——通过旋转矩阵将位置信息编码到 Q 和 K 中，相对位置关系体现在内积中，这比绝对位置编码更灵活。</p>
+<p><strong>DPO 训练</strong>是偏好对齐的部分。DPO 的巧妙之处在于不需要单独训练 Reward Model，直接从人类偏好对数据中学习，数学上等价于一个隐式的 RLHF。</p>
+<p><strong>MoE 架构</strong>的实现要解决负载均衡问题。我用了辅助 Loss 来防止所有 token 涌向同一个专家，这个问题在实际训练中很常见。</p>
+<p>通过这个项目，我对 LLM 从架构设计到训练再到部署有了完整的理解，也积累了实际的调参和排错经验。"</p>
+</blockquote>
+<hr />
+<h2 id="top-20">三、面试官最常问的 Top 20 问题及标准答案</h2>
+<h3 id="q1">Q1: 为什么选择这个项目？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"我选择这个项目有两个原因。第一，大模型是当前 AI 最核心的方向，我希望不只是调用 API，而是真正理解底层原理；第二，MiniMind 的 64M 参数规模使得我可以在单卡 GPU 上完成全流程训练，这让我能够快速迭代、深入理解每个技术细节。"</p>
+</blockquote>
+<p><strong>深挖追问</strong>：你自己改了什么 / 遇到了什么困难 → 转入具体技术问题</p>
+<hr />
+<h3 id="q2">Q2: 模型架构是什么？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"MiniMind 使用 Decoder-Only Transformer 架构。具体来说：<br />
+- 8 层 Transformer Block<br />
+- 512 维隐藏层<br />
+- 8 个 Query Head，2 个 KV Head（GQA）<br />
+- SwiGLU 激活函数<br />
+- RMSNorm 归一化<br />
+- RoPE 旋转位置编码<br />
+- 词表大小 6400<br />
+- 参数量约 64M"</p>
+</blockquote>
+<hr />
+<h3 id="q3">Q3: 参数量是多少，怎么算的？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"总参数约 64M。计算方式：<br />
+- Embedding: vocab_size × dim = 6400 × 512 ≈ 3.3M<br />
+- 每层 Attention: Q/K/V/O 投影 ≈ dim² × 4 (考虑 GQA 后略小)<br />
+- 每层 FFN: SwiGLU 有 3 个线性层 ≈ dim × hidden_dim × 3<br />
+- RMSNorm: 每层 2 个 ≈ 2 × dim<br />
+- 8 层累加<br />
+- LM Head 与 Embedding 共享权重，不额外占参数</p>
+<p>实际计算需要考虑 GQA 减少的 KV 参数和具体的 FFN 隐藏维度。"</p>
+</blockquote>
+<hr />
+<h3 id="q4-rope">Q4: RoPE 是什么，怎么实现的？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"RoPE（Rotary Position Embedding）通过旋转矩阵编码位置信息。核心思想是给 Q 和 K 向量乘以一个与位置相关的旋转矩阵。</p>
+<p>具体实现：将向量的维度两两配对，每对用一个旋转角度 θ。位置 m 的旋转角度为 mθ_i，其中 θ_i = 10000^{-2i/d}。</p>
+<p>关键性质：两个位置的 Q 和 K 做内积后，旋转角度变成它们的差 (m-n)θ_i，自然编码了相对位置。</p>
+<p>实现上用复数乘法代替矩阵乘法，效率很高。"</p>
+</blockquote>
+<hr />
+<h3 id="q5-gqa-mha">Q5: GQA 是什么，和 MHA 的区别？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"GQA（Grouped Query Attention）让多个 Q Head 共享一组 K/V Head。MiniMind 用 8 个 Q Head、2 个 KV Head，每 4 个 Q Head 共享 1 组 K/V。</p>
+<p>与 MHA（Multi-Head Attention）相比：<br />
+- MHA: Q/K/V head 数量相同（8/8/8）<br />
+- GQA: Q head 多，K/V head 少（8/2/2）<br />
+- MQA: 极端情况（8/1/1）</p>
+<p>GQA 的好处是减少 K/V 的参数和计算量，特别是推理时 KV-Cache 更小。效果上接近 MHA，但显存和速度更优。"</p>
+</blockquote>
+<hr />
+<h3 id="q6-rmsnorm-layernorm">Q6: 为什么用 RMSNorm 而不是 LayerNorm？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"RMSNorm 去掉了 LayerNorm 中的均值中心化（减去 mean）步骤，只保留了方差归一化（除以 RMS）。</p>
+<p>优势：<br />
+1. 计算更快（少一次 mean 统计）<br />
+2. 实践中效果与 LayerNorm 相当<br />
+3. LLaMA 系列模型验证了 RMSNorm 在大模型上的有效性</p>
+<p>RMSNorm 公式：y = x / RMS(x) × γ，其中 RMS(x) = √(mean(x²))"</p>
+</blockquote>
+<hr />
+<h3 id="q7-swiglu">Q7: SwiGLU 是什么？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"SwiGLU 是 FFN 中的激活函数，结合了 Swish 激活和 GLU（Gated Linear Unit）门控机制。</p>
+<p>公式：SwiGLU(x) = Swish(xW₁) ⊙ (xW₂)，然后再过 W₃ 投影回去。</p>
+<p>其中 Swish(x) = x × σ(x)。相比 ReLU，SwiGLU 效果更好但参数多 50%（3 个矩阵 vs 2 个矩阵）。LLaMA 等主流模型都采用 SwiGLU。"</p>
+</blockquote>
+<hr />
+<h3 id="q8-sft">Q8: 预训练和 SFT 的区别？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"预训练和 SFT 的核心区别：</p>
+<p><strong>预训练</strong>：<br />
+- 目标：学习语言知识和世界知识<br />
+- 数据：大量无标注文本（维基百科、网页等）<br />
+- 训练方式：Next Token Prediction，所有 token 都计算 loss<br />
+- 数据量：3B+ tokens</p>
+<p><strong>SFT（有监督微调）</strong>：<br />
+- 目标：学会按照指令格式回答<br />
+- 数据：指令-回答对（prompt-response）<br />
+- 训练方式：只对 response 部分计算 loss（Loss Mask）<br />
+- 数据量：相对较小（几十万条）"</p>
+</blockquote>
+<hr />
+<h3 id="q9-loss-mask">Q9: Loss Mask 是什么？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"Loss Mask 是 SFT 训练中的关键技术。在一条训练数据中，我们不希望模型去'预测' prompt 部分（这是给定的输入），只希望模型学习生成 response 部分。</p>
+<p>实现：构建一个 mask 矩阵，prompt 位置为 0，response 位置为 1。计算 loss 时乘以这个 mask，prompt 部分的 loss 被置零。</p>
+<p><code>输入: [user]你好[/user][assistant]你好！很高兴认识你[/assistant]
+Mask: [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]</code></p>
+<p>对于多轮对话，每轮的 user 部分 mask=0，assistant 部分 mask=1。"</p>
+</blockquote>
+<hr />
+<h3 id="q10-lora">Q10: LoRA 原理？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"LoRA（Low-Rank Adaptation）是一种参数高效的微调方法。</p>
+<p>核心思想：不修改原始权重 W，而是学习一个低秩增量 ΔW = BA，其中 B∈R^{d×r}，A∈R^{r×d}，r &lt;&lt; d。</p>
+<p>前向传播变成：y = (W + ΔW)x = Wx + BAx。</p>
+<p>优势：<br />
+1. 可训练参数大幅减少（比如 r=16 时只有原来的 1%）<br />
+2. 原始模型参数冻结，不会遗忘<br />
+3. 可以合并回原权重，推理时无额外开销</p>
+<p>MiniMind 使用 LoRA(r=16) 进行微调，通常只对 Q/K/V/O 投影矩阵加 LoRA。"</p>
+</blockquote>
+<hr />
+<h3 id="q11-dpo-ppo">Q11: DPO 和 PPO 的区别？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"核心区别有四点：<br />
+1. <strong>是否需要 RM</strong>：DPO 不需要，PPO 需要<br />
+2. <strong>数据类型</strong>：DPO 用离线偏好对（Off-Policy），PPO 用在线采样（On-Policy）<br />
+3. <strong>训练复杂度</strong>：DPO 简单（2 个模型），PPO 复杂（4 个模型）<br />
+4. <strong>探索能力</strong>：DPO 不探索，PPO 可以探索新策略</p>
+<p>DPO 更适合偏好对齐（如安全性），PPO/GRPO 更适合能力提升（如推理能力）。"</p>
+</blockquote>
+<hr />
+<h3 id="q12-kv-cache">Q12: 什么是 KV-Cache？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"KV-Cache 是推理时缓存历史 token 的 Key 和 Value 向量的优化技术。</p>
+<p>自回归生成每一步都需要和所有历史 token 做 Attention。如果不缓存，每步都要重新计算所有历史 K/V，计算量与序列长度的平方成正比。</p>
+<p>用了 KV-Cache 后，每步只计算新 token 的 Q/K/V，K/V 追加到缓存中。单步计算量变成线性。</p>
+<p>注意：训练时不用 KV-Cache，因为训练是并行处理整个序列，不存在重复计算问题。"</p>
+</blockquote>
+<hr />
+<h3 id="q13-moe">Q13: MoE 是怎么工作的？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"MoE 用多个 FFN 专家替代单个 FFN，通过 Router 决定每个 token 送给哪些专家。</p>
+<p>MiniMind-3-MoE 配置：4 个专家，Top-1 路由。总参数 198M，每个 token 只激活 64M 参数（只过 1 个专家）。</p>
+<p>Router 就是一个线性层 + Softmax，输出每个专家的概率。选概率最高的 K 个专家处理该 token，加权求和得到输出。</p>
+<p>训练时要加负载均衡 Loss，防止所有 token 涌向同一个专家（专家塌缩问题）。"</p>
+</blockquote>
+<hr />
+<h3 id="q14">Q14: 训练用了什么数据？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"分不同阶段使用不同数据：<br />
+- <strong>分词器</strong>：使用中英文混合语料训练 BPE 分词器，词表 6400<br />
+- <strong>预训练</strong>：约 3B tokens 的中文文本，包括百科、问答等<br />
+- <strong>SFT</strong>：指令-回答对数据，支持单轮和多轮对话格式<br />
+- <strong>DPO</strong>：偏好对数据（dpo.jsonl），每条包含 chosen 和 rejected<br />
+- <strong>RL（PPO/GRPO）</strong>：使用 SFT 数据的 prompt 部分，奖励由 InternLM2-1.8B-Reward 打分"</p>
+</blockquote>
+<hr />
+<h3 id="q15-gpu">Q15: 训练了多久，用什么 GPU？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"MiniMind 设计的核心理念就是低门槛。预训练在单张消费级 GPU（如 RTX 3090/4090）上可以在数小时内完成。SFT 和 DPO 更快，通常 1-2 小时。</p>
+<p>64M 参数的模型非常小，单卡显存完全够用。如果使用 LoRA 微调，显存需求更低。这也是选择 64M 参数规模的原因——让个人开发者也能完整体验全流程。"</p>
+</blockquote>
+<hr />
+<h3 id="q16">Q16: 模型有什么局限性？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"主要局限：<br />
+1. <strong>参数量小</strong>：64M 参数能力有限，复杂推理和长文本理解较弱<br />
+2. <strong>词表小</strong>：6400 的词表覆盖有限，对少见字和英文处理较差<br />
+3. <strong>训练数据有限</strong>：3B tokens 相比主流模型（万亿级）差距很大<br />
+4. <strong>幻觉严重</strong>：小模型容易"编造"事实<br />
+5. <strong>不支持多模态</strong>：纯文本模型</p>
+<p>但作为学习项目，这些局限是有意为之——目标是学习原理而非追求效果。"</p>
+</blockquote>
+<hr />
+<h3 id="q17">Q17: 幻觉问题怎么缓解？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"幻觉（Hallucination）指模型生成看似合理但实际错误的内容。缓解方法：</p>
+<ol>
+<li><strong>更多高质量训练数据</strong>：减少噪声数据，增加事实性数据</li>
+<li><strong>RLHF/DPO 对齐</strong>：让模型学会说"我不确定"</li>
+<li><strong>RAG（检索增强生成）</strong>：从外部知识库检索事实，作为上下文注入</li>
+<li><strong>Temperature 调低</strong>：减少采样随机性</li>
+<li><strong>Self-consistency（自一致性）</strong>：多次生成取共识</li>
+<li><strong>Adaptive Thinking</strong>：让模型先思考再回答</li>
+</ol>
+<p>对于 MiniMind 这种小模型，幻觉是不可避免的，主要通过 RAG 和对齐来缓解。"</p>
+</blockquote>
+<hr />
+<h3 id="q18-6400">Q18: 为什么词表只有 6400？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"6400 的小词表是有意设计的：</p>
+<ol>
+<li><strong>Embedding 参数量控制</strong>：Embedding 参数 = vocab_size × dim。如果用 32000 的词表，光 Embedding 就 16M 参数，占总参数的 25%</li>
+<li><strong>训练效率</strong>：小词表意味着 LM Head 的 softmax 更快</li>
+<li><strong>学习目的</strong>：展示分词器和词表设计的权衡</li>
+</ol>
+<p>代价是分词粒度较粗，一些中文字可能需要多个 token 表示，文本压缩率不如大词表高。"</p>
+</blockquote>
+<hr />
+<h3 id="q19-weight-tying">Q19: 权重共享（Weight Tying）是什么？</h3>
+<p><strong>标准答案</strong>：</p>
+<blockquote>
+<p>"权重共享指 Embedding 层和 LM Head（输出层）共享同一组权重。</p>
+<p>Embedding: token_id → vector（查表），权重矩阵 E ∈ R^{V×D}<br />
+LM Head: vector → logits（投影），权重矩阵 W ∈ R^{D×V}</p>
+<p>设 W = E^T，这就是权重共享。好处：<br />
+1. 减少一半的词表相关参数（对小模型影响显著）<br />
+2. 语义一致性：输入和输出的 token 表征在同一空间<br />
+3. 实践效果好：GPT-2、LLaMA 等都使用了权重共享"</p>
+</blockquote>
+<hr />
+<h3 id="q20">Q20: 你在项目中遇到的最大挑战？</h3>
+<p><strong>标准答案</strong>（示例，请根据自己的经历调整）：</p>
+<blockquote>
+<p>"最大的挑战是 RL 训练（PPO/GRPO）的调参。</p>
+<p>小模型做 RL 训练有个特殊困难：模型本身生成能力有限，探索时产生的回答质量很低，奖励信号非常稀疏且噪声大。</p>
+<p>我的解决过程：<br />
+1. 先确保 SFT 模型质量足够好（好的起点）<br />
+2. 用较小的学习率（防止模型崩溃）<br />
+3. 加大 KL 惩罚系数（不让模型跑太远）<br />
+4. 用 GRPO 替代 PPO（减少 Critic 网络的不稳定性）</p>
+<p>这个过程让我深刻理解了 RL 训练中'探索与利用'的平衡。"</p>
+</blockquote>
+<hr />
+<h2 id="_4">四、深挖追问应对策略</h2>
+<h3 id="41">4.1 面试官的追问模式</h3>
+<p>面试官追问通常有三种模式：</p>
+<p><strong>纵向深挖</strong>：在一个点上不断深入</p>
+<pre class="highlight"><code>你用了 RoPE → RoPE 的数学推导 → 为什么用 10000 作为 base → 修改 base 会怎样
+</code></pre>
+
+<p><strong>横向拓展</strong>：从一个点出发联系其他知识</p>
+<pre class="highlight"><code>你用了 GQA → 和 MHA 区别 → 和 MQA 的区别 → 对 KV-Cache 有什么影响
+</code></pre>
+
+<p><strong>挑战质疑</strong>：质疑你的选择或理解</p>
+<pre class="highlight"><code>你说 DPO 好 → 那为什么 OpenAI 用 PPO 不用 DPO → DPO 有什么局限
+</code></pre>
+
+<h3 id="42">4.2 应对策略</h3>
+<p><strong>原则一：承认不知道比胡编强</strong></p>
+<p>如果面试官问到你不清楚的知识点，坦诚说"这个我不太了解，但我的理解是..."比编造一个错误答案好得多。</p>
+<p><strong>原则二：从已知出发推理</strong></p>
+<pre class="highlight"><code>面试官：RoPE 的 base 从 10000 改成 100000 会怎样？
+你：（我不确定具体效果，但可以推理）
+→ base 越大，低维的频率越低，旋转越慢
+→ 这意味着位置编码的周期变长
+→ 可能有助于处理更长的序列
+→ 但可能降低短距离的位置精度
+</code></pre>
+
+<p><strong>原则三：引导到自己擅长的方向</strong></p>
+<pre class="highlight"><code>面试官：说说你对分布式训练的理解？
+你：我在 MiniMind 中主要用了 DDP 做数据并行，因为模型只有 64M 参数，
+    单卡完全放得下。不过我了解模型并行的基本概念...
+    （然后主动转向你更熟悉的话题）
+    ...我在 MoE 架构中思考过专家并行的可能性...
+</code></pre>
+
+<h3 id="43">4.3 高频深挖点的准备</h3>
+<p>以下是面试官最喜欢深挖的几个方向，提前准备好：</p>
+<p><strong>Attention 相关</strong>：<br />
+- Attention 复杂度是多少？O(n²d)<br />
+- 怎么降低复杂度？FlashAttention（IO 优化）、稀疏 Attention、线性 Attention<br />
+- Causal Mask 是什么？防止当前 token 看到未来的信息</p>
+<p><strong>位置编码</strong>：<br />
+- ALiBi vs RoPE？ALiBi 是 Attention Bias，RoPE 是旋转编码<br />
+- 绝对位置编码的问题？不能外推到更长序列<br />
+- NTK-aware RoPE 和 YaRN 的区别？</p>
+<p><strong>训练相关</strong>：<br />
+- 梯度累积是什么？累积多个 mini-batch 的梯度再更新，等效于更大 batch<br />
+- 混合精度训练？FP16 前向/反向 + FP32 权重更新<br />
+- 学习率 warmup 的作用？初始阶段 lr 太大会导致训练不稳定</p>
+<p><strong>对齐相关</strong>：<br />
+- RLHF 的完整流程？SFT → 训练 RM → PPO<br />
+- Constitutional AI 是什么？用规则约束代替人类反馈<br />
+- DPO 的变体？IPO、KTO、ORPO 等</p>
+<hr />
+<h2 id="_5">五、加分项</h2>
+<h3 id="51">5.1 如果你做了额外工作</h3>
+<p>以下行为会在面试中加分：</p>
+<p><strong>1. 微调私有数据</strong></p>
+<blockquote>
+<p>"我用公司/学校的 [领域] 数据对 MiniMind 做了 SFT，效果是 [具体指标]"</p>
+</blockquote>
+<p><strong>2. 对比实验</strong></p>
+<blockquote>
+<p>"我对比了 RoPE 和学习式位置编码的效果，发现在短序列上差别不大，但长序列外推 RoPE 明显更好"</p>
+</blockquote>
+<p><strong>3. 训练 MoE 版本</strong></p>
+<blockquote>
+<p>"我从 Dense 版本扩展到了 MoE，遇到了专家塌缩问题，通过调整负载均衡系数解决了"</p>
+</blockquote>
+<p><strong>4. 做了消融实验</strong></p>
+<blockquote>
+<p>"我做了 GQA vs MHA 的消融实验，在 64M 参数下 GQA 可以节省 20% 的 KV-Cache 显存而精度损失小于 1%"</p>
+</blockquote>
+<p><strong>5. 代码优化</strong></p>
+<blockquote>
+<p>"我用 FlashAttention 替换了标准 Attention 实现，推理速度提升了 2 倍"</p>
+</blockquote>
+<h3 id="52">5.2 展示学习深度的加分话术</h3>
+<p><strong>关联最新论文</strong>：</p>
+<blockquote>
+<p>"我注意到 DeepSeek-V2 也用了 MoE 架构，但他们用了 DeepSeekMoE 的共享专家机制，这和 MiniMind 的标准 MoE 有区别..."</p>
+</blockquote>
+<p><strong>理解设计权衡</strong>：</p>
+<blockquote>
+<p>"MiniMind 选择 6400 的小词表是为了控制 Embedding 参数占比，但如果要做英文任务，可能需要扩展到至少 32K..."</p>
+</blockquote>
+<p><strong>思考改进方向</strong>：</p>
+<blockquote>
+<p>"如果要提升 MiniMind 的效果，我认为最重要的三个方向是：(1) 扩大训练数据；(2) 增大词表；(3) 在 SFT 阶段引入更高质量的数据。"</p>
+</blockquote>
+<hr />
+<h2 id="_6">六、面试心态和技巧</h2>
+<h3 id="61">6.1 心态准备</h3>
+<ol>
+<li><strong>项目是载体，能力是目的</strong>：面试官考察的是你的技术理解力，不是 MiniMind 项目本身</li>
+<li><strong>不是所有问题都有标准答案</strong>：开放性问题展示你的思考过程更重要</li>
+<li><strong>做了就是做了，没做就没做</strong>：不要夸大自己的贡献</li>
+</ol>
+<h3 id="62">6.2 实用技巧</h3>
+<p><strong>技巧一：准备纸笔，画图讲解</strong></p>
+<p>面试时如果需要解释 Attention 机制或 MoE 路由，画一个简单的图会比口头描述清晰 10 倍。</p>
+<pre class="highlight"><code>Attention 计算流程图:
+Input → [Q] [K] [V] → Q×K^T → Scale → Mask → Softmax → ×V → Output
+
+MoE 流程图:
+Input → Router → [Expert 1, Expert 2, Expert 3, Expert 4] → Weighted Sum → Output
+                   ↑ Top-1 选择
+</code></pre>
+
+<p><strong>技巧二：主动总结</strong></p>
+<p>回答完一个复杂问题后，用一句话总结：</p>
+<blockquote>
+<p>"简单来说，KV-Cache 就是空间换时间——缓存历史的 K/V，避免推理时重复计算。"</p>
+</blockquote>
+<p><strong>技巧三：反问环节准备好问题</strong></p>
+<pre class="highlight"><code>- 你们团队目前在做什么方向的大模型工作？
+- 你们的模型训练用什么规模的数据和算力？
+- 你们是否有做 RLHF/DPO 相关的工作？
+</code></pre>
+
+<h3 id="63">6.3 常见陷阱</h3>
+<p><strong>陷阱一：只会背诵，不能灵活应用</strong></p>
+<p>面试官可能会变换问法：<br />
+- "如果你的模型 loss 不下降怎么排查？"<br />
+- "如果要把模型从 64M 扩展到 1B，需要改什么？"</p>
+<p>→ 需要真正理解原理，不能只背答案</p>
+<p><strong>陷阱二：过度关注细节，忽略全局</strong></p>
+<p>如果面试官问"介绍一下你的项目"，不要一上来就讲 RoPE 的数学推导。先给全景，再根据面试官兴趣深入。</p>
+<p><strong>陷阱三：把项目说成"跑了一下开源代码"</strong></p>
+<p>要强调你<strong>理解了什么</strong>、<strong>思考了什么</strong>、<strong>尝试了什么</strong>，而不是"我 clone 了代码，改了几个参数，跑了一下"。</p>
+<hr />
+<h2 id="_7">🎤 面试考点（综合回顾）</h2>
+<h3 id="q1-minimind">Q1: 一句话概括 MiniMind 项目？</h3>
+<p><strong>答</strong>：MiniMind 是一个从零实现的 64M 参数大语言模型，涵盖了 Transformer 架构、预训练、SFT、DPO/PPO 对齐、MoE 扩展和多框架部署的完整技术栈。</p>
+<h3 id="q2-sft-rlhf">Q2: 预训练 → SFT → RLHF 三阶段各自的作用？</h3>
+<p><strong>答</strong>：<br />
+- 预训练：学习语言知识和世界知识（"学会说话"）<br />
+- SFT：学习指令跟随和对话格式（"学会回答"）<br />
+- RLHF/DPO：对齐人类偏好和价值观（"学会好好说话"）</p>
+<h3 id="q3-minimind">Q3: 如果你只能做一个改进来提升 MiniMind 效果，你会做什么？</h3>
+<p><strong>答</strong>：（开放题，展示思考能力）</p>
+<blockquote>
+<p>"我会扩大训练数据量。当前 3B tokens 的预训练数据相对不足，研究表明数据量对小模型的影响甚至比参数量更大（参考 Chinchilla scaling law）。如果能用 10-30B tokens 的高质量数据，效果应该会有显著提升。"</p>
+</blockquote>
+<h3 id="q4-transformer">Q4: Transformer 的计算瓶颈在哪？</h3>
+<p><strong>答</strong>：<br />
+- 训练时：Attention 的 O(n²) 复杂度是瓶颈，长序列训练很慢<br />
+- 推理时：自回归生成是 memory-bound（受 GPU 显存带宽限制），不是 compute-bound<br />
+- KV-Cache 的显存占用也是推理的瓶颈</p>
+<h3 id="q5">Q5: 你怎么评估模型效果？</h3>
+<p><strong>答</strong>：<br />
+- 定量：用 perplexity（困惑度）衡量语言建模能力，用下游任务 benchmark（如 C-Eval）评估知识<br />
+- 定性：人工评估对话质量、连贯性、准确性<br />
+- 对齐效果：通过 A/B 测试或人类偏好评分</p>
+<hr />
+<h2 id="_8">✅ 自测题</h2>
+<ol>
+<li><strong>模拟面试</strong>：请用 1 分钟介绍 MiniMind 项目（计时练习）。</li>
+<li><strong>手写</strong>：在纸上画出 Transformer Decoder Block 的结构图。</li>
+<li><strong>快问快答</strong>：不看笔记，回答以下问题：</li>
+<li>RoPE 的全称？</li>
+<li>GQA 和 MHA 的区别？</li>
+<li>DPO 的损失函数中 β 的作用？</li>
+<li>KV-Cache 为什么只缓存 K 和 V？</li>
+<li>MoE 的负载均衡 Loss 解决什么问题？</li>
+<li><strong>深挖演练</strong>：让朋友/同学扮演面试官，从 Top 20 问题中随机挑选 5 个追问。</li>
+<li><strong>简历打磨</strong>：根据本节提供的模板，写出你自己的简历项目描述。</li>
+</ol>
+<details>
+<summary>参考答案（快问快答部分）</summary>
+
+- RoPE: Rotary Position Embedding（旋转位置编码）
+- GQA 让多个 Q Head 共享一组 K/V Head；MHA 中 Q/K/V head 数量相同
+- β 控制策略模型偏离参考模型的程度，越大越保守
+- 因为 Q 每次不同（对应当前新 token），而 K/V 历史部分不变可以复用
+- 防止专家塌缩（所有 token 涌向同一个专家）
+
+</details>
+
+<hr />
+<h2 id="_9">课程总结</h2>
+<p>恭喜你完成了 MiniMind 学习教程的全部 22 节课程！</p>
+<p>回顾我们的学习路径：</p>
+<pre class="highlight"><code>Phase 1: 基础知识 (L01-L06)
+  Tokenizer → Embedding → RoPE → Attention/GQA → FFN/SwiGLU → Transformer Block
+
+Phase 2: 训练流程 (L07-L12)
+  预训练 → Loss Mask → SFT → LoRA → 数据工程 → 评估
+
+Phase 3: 理论深化 (L13-L16)
+  Scaling Laws → 注意力变体 → 归一化 → 优化器
+
+Phase 4: 高级特性与面试通关 (L17-L22)
+  DPO → PPO/GRPO → MoE → 推理优化 → 部署 → 面试通关
+</code></pre>
+
+<p>你现在拥有了完整的 LLM 知识体系。下一步：<strong>动手实践，反复迭代，把知识变成真正的能力。</strong></p>
+<p>祝你面试顺利，拿到心仪的 Offer！</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

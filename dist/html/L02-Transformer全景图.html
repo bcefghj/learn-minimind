@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L02 - Transformer 全景图 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l02-transformer">L02 - Transformer 全景图</h1>
+<blockquote>
+<p><strong>"注意力就是一切"</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解为什么 Transformer 取代了 RNN，成为 NLP 的基石</li>
+<li>掌握 Transformer 架构的整体结构（Embedding → Attention → FFN → Output）</li>
+<li>用直觉理解 Self-Attention 和多头注意力的工作方式</li>
+<li>理解 Attention 公式中每一步的含义</li>
+<li>掌握残差连接、Layer Normalization、Positional Encoding 的作用</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>阅读完 L01，理解"下一个词预测"和 Decoder-Only 架构的基本概念</li>
+<li>知道矩阵乘法是两个表格的运算（不需要会算，知道存在即可）</li>
+<li>了解"概率"和"向量"的直觉含义</li>
+</ul>
+<hr />
+<h2 id="_3">正文讲解</h2>
+<h3 id="1-transformerrnn">1. 为什么需要 Transformer？——RNN 的困境</h3>
+<p>在 Transformer 出现之前（2017 年以前），处理语言的主流模型是 <strong>RNN（循环神经网络）</strong>。</p>
+<h4 id="rnn">RNN 是怎么工作的？</h4>
+<p>RNN 像一个<strong>流水线工人</strong>，一次只处理一个词，每处理完一个词就把"记忆"传给下一步：</p>
+<pre class="highlight"><code>&quot;我&quot; → [处理] → 记忆1
+&quot;喜&quot; → [处理 + 记忆1] → 记忆2
+&quot;欢&quot; → [处理 + 记忆2] → 记忆3
+&quot;编&quot; → [处理 + 记忆3] → 记忆4
+&quot;程&quot; → [处理 + 记忆4] → 最终输出
+</code></pre>
+
+<h4 id="rnn_1">RNN 的两大致命问题</h4>
+<p><strong>问题 1：长距离依赖（记忆衰退）</strong></p>
+<p>就像"传话游戏"——消息经过太多人之后就走样了。</p>
+<pre class="highlight"><code>&quot;小明今天早上吃了早饭，然后去了学校，上了数学课，
+ 接着上了英语课，中午吃了食堂的红烧肉，下午……
+ 他昨天说的那件事是关于___&quot;
+</code></pre>
+
+<p>当要填最后的空时，RNN 已经"忘记"了小明昨天说了什么——因为中间经过了太多步，记忆被不断稀释。</p>
+<p><strong>问题 2：无法并行计算（速度瓶颈）</strong></p>
+<p>RNN 必须<strong>按顺序</strong>处理——第二个词必须等第一个词处理完才能开始。一篇 1000 词的文章，需要 1000 步串行计算。</p>
+<blockquote>
+<p><strong>类比</strong>：RNN 就像排队过一座<strong>单车道的桥</strong>，每次只能过一辆车，后面的车再着急也得等着。</p>
+</blockquote>
+<h4 id="transformer">Transformer 的答案</h4>
+<p>2017 年，Google 团队发表了划时代的论文《Attention Is All You Need》，提出了 <strong>Transformer</strong> 架构。它同时解决了 RNN 的两大问题：</p>
+<ul>
+<li><strong>长距离依赖</strong> → 用 Attention 机制，每个词可以直接"看到"句子中的所有其他词</li>
+<li><strong>无法并行</strong> → 不再逐词处理，所有词同时计算</li>
+</ul>
+<blockquote>
+<p><strong>类比</strong>：Transformer 就像一座<strong>立交桥</strong>，所有方向的车辆可以同时通行，互不干扰。</p>
+</blockquote>
+<h3 id="2-transformer">2. Transformer 架构全景图——餐厅比喻</h3>
+<p>我们用一家<strong>高档餐厅</strong>来类比 Transformer 的工作流程：</p>
+<pre class="highlight"><code>┌──────────────────────────────────────────┐
+│              Transformer 餐厅              │
+│                                          │
+│  📋 Embedding (菜单翻译)                  │
+│    顾客点菜 → 翻译成厨房能理解的语言        │
+│                                          │
+│  📍 Positional Encoding (座位号)           │
+│    给每道菜贴上&quot;第几道&quot;的标签               │
+│                                          │
+│  🔄 × N 层 (N 个厨师团队轮流加工)          │
+│  ┌────────────────────────────────┐      │
+│  │  👨‍🍳 Self-Attention (厨师间沟通)  │      │
+│  │    每个厨师都去看看其他厨师在做什么  │      │
+│  │    → 决定自己该加什么调料          │      │
+│  │                                │      │
+│  │  🍳 Feed-Forward (各展手艺)      │      │
+│  │    每个厨师用自己的独门技法加工食材  │      │
+│  │                                │      │
+│  │  ➕ 残差连接 (保留原味)           │      │
+│  │    加工后与原始食材混合，不丢原味   │      │
+│  │                                │      │
+│  │  📏 Layer Norm (质量检查)        │      │
+│  │    确保每道菜的味道在标准范围内     │      │
+│  └────────────────────────────────┘      │
+│                                          │
+│  🍽️ Output (上菜)                        │
+│    把最终结果翻译回顾客能懂的语言          │
+└──────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="3-encoder-decoder">3. Encoder 和 Decoder 的区别</h3>
+<p>原始 Transformer 有两个部分：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>功能</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Encoder</strong></td>
+<td>读懂输入</td>
+<td>听你说话的"理解者"</td>
+</tr>
+<tr>
+<td><strong>Decoder</strong></td>
+<td>生成输出</td>
+<td>组织语言的"表达者"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键区别</strong>：</p>
+<ul>
+<li><strong>Encoder</strong>：每个词可以看到<strong>所有</strong>其他词（双向的）</li>
+<li><strong>Decoder</strong>：每个词只能看到<strong>它前面的</strong>词（单向的，因果遮罩）</li>
+</ul>
+<pre class="highlight"><code>Encoder (双向):
+  &quot;我 喜欢 编程&quot; → &quot;喜欢&quot;可以同时看到&quot;我&quot;和&quot;编程&quot;
+
+Decoder (单向/因果):
+  &quot;我 喜欢 编程&quot; → &quot;喜欢&quot;只能看到&quot;我&quot;，看不到&quot;编程&quot;
+                  → &quot;编程&quot;可以看到&quot;我&quot;和&quot;喜欢&quot;
+</code></pre>
+
+<p><strong>为什么 Decoder 要"遮住"后面的词？</strong></p>
+<p>因为在生成时，后面的词还没有被生成出来！模型要预测"下一个词"，所以在训练时也必须模拟这种"只能看前面"的场景。</p>
+<p>MiniMind 使用的是 <strong>纯 Decoder 架构</strong>（Decoder-Only），没有 Encoder 部分。所有输入和输出都在同一个序列中处理。</p>
+<h3 id="4-self-attention">4. Self-Attention：每个词都在"看"其他词</h3>
+<p>Self-Attention 是 Transformer 最核心的创新。</p>
+<h4 id="_4">直觉理解</h4>
+<p>想象你在读这句话：</p>
+<blockquote>
+<p>"小猫坐在垫子上，<strong>它</strong>很舒服"</p>
+</blockquote>
+<p>当你读到"它"时，你的大脑会<strong>回头看</strong>整个句子，快速判断出"它"指的是"小猫"而不是"垫子"。你给"小猫"分配了很高的<strong>注意力权重</strong>，给"垫子"分配了较低的权重。</p>
+<p>Self-Attention 做的就是同样的事情——对于句子中的每个词，计算它应该"关注"其他词的程度。</p>
+<pre class="highlight"><code>输入: &quot;小猫 坐在 垫子 上 它 很 舒服&quot;
+
+当处理&quot;它&quot;时的注意力权重:
+  &quot;小猫&quot; → 0.65 ⭐ (最高关注)
+  &quot;坐在&quot; → 0.05
+  &quot;垫子&quot; → 0.12
+  &quot;上&quot;   → 0.03
+  &quot;它&quot;   → 0.08
+  &quot;很&quot;   → 0.04
+  &quot;舒服&quot; → 0.03
+</code></pre>
+
+<h4 id="qkv">Q、K、V 三剑客</h4>
+<p>Self-Attention 有三个核心角色：<strong>Query（Q）、Key（K）、Value（V）</strong></p>
+<p>用"查百科全书"来类比：</p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>类比</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Query（查询）</strong></td>
+<td>你的问题</td>
+<td>"我想找什么？"</td>
+</tr>
+<tr>
+<td><strong>Key（键）</strong></td>
+<td>百科全书每个词条的标题</td>
+<td>"我这里有什么？"</td>
+</tr>
+<tr>
+<td><strong>Value（值）</strong></td>
+<td>百科全书每个词条的内容</td>
+<td>"如果你来找我，我给你这些信息"</td>
+</tr>
+</tbody>
+</table>
+<p>工作流程：</p>
+<pre class="highlight"><code>第 1 步: 每个词生成自己的 Q、K、V
+  &quot;小猫&quot; → Q_小猫, K_小猫, V_小猫
+  &quot;坐在&quot; → Q_坐在, K_坐在, V_坐在
+  ...
+
+第 2 步: 用 Q 去和所有的 K 做匹配（点积）
+  Q_它 · K_小猫 = 高分 ⭐ (很匹配！)
+  Q_它 · K_垫子 = 低分
+  Q_它 · K_坐在 = 低分
+
+第 3 步: 把匹配分数转化为注意力权重（softmax）
+  [高分, 低分, 低分, ...] → [0.65, 0.12, 0.05, ...]
+
+第 4 步: 用权重加权求和所有的 V
+  输出_它 = 0.65 × V_小猫 + 0.12 × V_垫子 + 0.05 × V_坐在 + ...
+</code></pre>
+
+<p>这样，"它"这个词的表示就融入了它所关注的其他词（主要是"小猫"）的信息。</p>
+<h3 id="5-attention">5. Attention 公式详解</h3>
+<p>$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V$$</p>
+<p>别被公式吓到！我们逐步分解：</p>
+<h4 id="1-qkt">第 1 步：$QK^T$（计算匹配度）</h4>
+<p>Q 和 K 做矩阵乘法，得到一个"注意力分数矩阵"。</p>
+<blockquote>
+<p><strong>直觉</strong>：Q 是"我在找什么"，K 是"我有什么"。两者越相似，点积（内积）分数越高。就像两个人的兴趣越接近，聊天就越投缘。</p>
+</blockquote>
+<pre class="highlight"><code>假设句子有 4 个词，每个词的向量维度是 3：
+Q = [[1,0,1], [0,1,0], [1,1,0], [0,0,1]]  (4×3)
+K = [[1,0,1], [0,1,0], [1,1,0], [0,0,1]]  (4×3)
+
+QK^T = 4×4 的矩阵，每个位置 (i,j) 表示：第 i 个词对第 j 个词的关注度
+</code></pre>
+
+<h4 id="2-sqrtd_k">第 2 步：除以 $\sqrt{d_k}$（缩放）</h4>
+<p>$d_k$ 是 Key 向量的维度。为什么要除以它的平方根？</p>
+<blockquote>
+<p><strong>直觉</strong>：如果向量维度很大，点积的结果数值也会很大。数值太大的话，softmax 会变得"太极端"——一个分数接近 1，其他全接近 0。除以 $\sqrt{d_k}$ 就像是把温度调到合适范围，让注意力分布不至于"只盯着一个人看"。</p>
+</blockquote>
+<pre class="highlight"><code>假设 d_k = 64
+原始分数: [128, 5, 3, 2]
+除以 √64=8: [16, 0.625, 0.375, 0.25]
+softmax 变得更平滑，不会过度集中
+</code></pre>
+
+<p><strong>面试常考点</strong>：不除以 $\sqrt{d_k}$，softmax 的输入值会过大，梯度会非常小（softmax 在极端值处梯度趋近于 0），导致训练不稳定。</p>
+<h4 id="3-textsoftmax">第 3 步：$\text{softmax}$（转化为概率）</h4>
+<p>将分数归一化为概率分布（所有值在 0-1 之间，总和为 1）。</p>
+<pre class="highlight"><code>缩放后的分数: [16, 0.625, 0.375, 0.25]
+softmax 后:   [0.99, 0.003, 0.002, 0.005]
+</code></pre>
+
+<h4 id="4-v">第 4 步：乘以 $V$（加权聚合）</h4>
+<p>用注意力权重对 V 做加权求和，得到最终输出。</p>
+<pre class="highlight"><code>输出 = 0.99 × V_1 + 0.003 × V_2 + 0.002 × V_3 + 0.005 × V_4
+</code></pre>
+
+<p>每个词的输出都是所有词的 Value 的加权混合，权重由 Q 和 K 的匹配程度决定。</p>
+<h3 id="6">6. 多头注意力：多个角度看同一句话</h3>
+<p><strong>Multi-Head Attention（多头注意力）</strong> 是 Transformer 的另一个关键设计。</p>
+<h4 id="_5">为什么需要多个"头"？</h4>
+<p>一个注意力头只能从一个角度理解句子。就像看一幅画：</p>
+<ul>
+<li>头 1 关注<strong>语法关系</strong>："它"→"小猫"（代词指代）</li>
+<li>头 2 关注<strong>位置关系</strong>：相邻的词之间的联系</li>
+<li>头 3 关注<strong>语义关系</strong>："舒服"→"垫子"（垫子让人舒服）</li>
+</ul>
+<blockquote>
+<p><strong>类比</strong>：单头注意力像是只用一只眼睛看世界，多头注意力像是用多只眼睛从不同角度同时观察，然后把所有角度的信息综合起来。</p>
+</blockquote>
+<h4 id="_6">具体实现</h4>
+<pre class="highlight"><code>原始向量维度 d_model = 768
+注意力头数 n_heads = 8
+每个头的维度 head_dim = 768 / 8 = 96
+
+步骤:
+1. 把 768 维的 Q/K/V 各切成 8 份，每份 96 维
+2. 每个头独立计算 Attention
+3. 把 8 个头的输出拼接回 768 维
+4. 通过一个线性层（投影矩阵）做最终变换
+</code></pre>
+
+<p>MiniMind 使用了 <strong>GQA（Grouped-Query Attention，分组查询注意力）</strong>：</p>
+<ul>
+<li>Q 有 8 个头（<code>num_attention_heads=8</code>）</li>
+<li>K 和 V 只有 4 个头（<code>num_key_value_heads=4</code>）</li>
+<li>每 2 个 Q 头共享 1 个 K/V 头</li>
+</ul>
+<p>这样可以减少 K/V 的参数量和显存占用，同时基本不损失性能——这是 LLaMA 等现代模型广泛采用的技术。</p>
+<h3 id="7-residual-connection">7. 残差连接 (Residual Connection)</h3>
+<h4 id="_7">是什么？</h4>
+<p>残差连接就是<strong>把层的输入直接加到层的输出上</strong>：</p>
+<p>$$\text{output} = \text{Layer}(x) + x$$</p>
+<h4 id="_8">为什么需要？</h4>
+<blockquote>
+<p><strong>类比</strong>：就像做菜时，即使你加了新的调料（Layer 的变换），也要保留食材的原味（x）。这样，即使调料放多了（某一层学偏了），原味还在，不至于完全变味。</p>
+</blockquote>
+<p>技术上的好处：</p>
+<ol>
+<li><strong>解决梯度消失</strong>：在反向传播时，梯度可以直接通过"捷径"流回去，不会在深层网络中消失</li>
+<li><strong>让深层网络可训练</strong>：没有残差连接的话，超过 20 层的网络几乎训练不动</li>
+<li><strong>保底不退步</strong>：最差情况下，如果某一层没学到有用的东西，至少输出等于输入（ $\text{Layer}(x) ≈ 0$ 时）</li>
+</ol>
+<h3 id="8-layer-normalization">8. Layer Normalization（层归一化）</h3>
+<h4 id="_9">是什么？</h4>
+<p>Layer Norm 对每个样本的特征做归一化，让它们的均值为 0、方差为 1。</p>
+<h4 id="_10">为什么需要？</h4>
+<blockquote>
+<p><strong>类比</strong>：就像考试后进行"标准化评分"。不同题目难度不同，直接比较原始分不公平。归一化后，所有维度的数值都在类似的范围内，模型训练更稳定。</p>
+</blockquote>
+<p>MiniMind 采用的是 <strong>RMSNorm</strong>（Root Mean Square Normalization），这是 Layer Norm 的简化版本，去掉了减去均值的步骤，只做缩放：</p>
+<p>$$\text{RMSNorm}(x) = \frac{x}{\sqrt{\text{mean}(x^2) + \epsilon}} \times \gamma$$</p>
+<p>RMSNorm 比标准 LayerNorm 计算更快，效果相当，被 LLaMA、MiniMind 等模型广泛使用。</p>
+<p>MiniMind 中的位置是 <strong>Pre-Norm</strong>（先归一化再做 Attention/FFN），而不是原始 Transformer 的 Post-Norm。</p>
+<h3 id="9-positional-encoding">9. Positional Encoding（位置编码）</h3>
+<h4 id="_11">为什么需要？</h4>
+<p>Attention 机制有一个"缺陷"——它是<strong>无序的</strong>。</p>
+<pre class="highlight"><code>&quot;小猫追小狗&quot; 和 &quot;小狗追小猫&quot;
+对于纯 Attention 来说，这两句话的关系是一样的！
+</code></pre>
+
+<p>因为 Attention 只看"谁和谁相关"，不看"谁在前谁在后"。所以我们需要给每个词加上<strong>位置信息</strong>。</p>
+<h4 id="minimind-rope">MiniMind 使用的 RoPE（旋转位置编码）</h4>
+<p>MiniMind 不是使用原始 Transformer 论文中的正弦位置编码，而是采用了更先进的 <strong>RoPE（Rotary Position Embedding）</strong>。</p>
+<blockquote>
+<p><strong>直觉</strong>：RoPE 的核心思想是"旋转"——把位置信息编码为向量空间中的旋转角度。两个位置之间的距离越远，它们之间的旋转角度就越大。这样做的好处是：(1) 位置信息自然融入了 Q 和 K 的点积运算中；(2) 可以灵活外推到训练时没见过的更长序列。</p>
+</blockquote>
+<p>RoPE 的效果：</p>
+<pre class="highlight"><code>位置 0 的词向量 → 旋转 0°
+位置 1 的词向量 → 旋转 θ°
+位置 2 的词向量 → 旋转 2θ°
+...
+</code></pre>
+
+<p>两个词的注意力分数只取决于它们的<strong>相对位置</strong>（旋转角度差），而不是绝对位置。</p>
+<h3 id="10-feed-forward-network-ffn">10. Feed-Forward Network (FFN)</h3>
+<p>在 Attention 之后，每个 token 会经过一个 <strong>前馈神经网络 (FFN)</strong>。</p>
+<h4 id="_12">作用</h4>
+<p>如果说 Attention 是"收集信息"（每个词去看其他词），FFN 就是"消化信息"（用自己的"专业知识"处理收集到的信息）。</p>
+<blockquote>
+<p><strong>类比</strong>：Attention 像是开会讨论，每个人听了别人的意见；FFN 像是会后各自回工位深入思考和处理。</p>
+</blockquote>
+<h4 id="minimind-swiglu">MiniMind 使用的 SwiGLU</h4>
+<p>MiniMind 的 FFN 不是简单的两层全连接，而是使用了 <strong>SwiGLU</strong> 激活函数：</p>
+<p>$$\text{FFN}(x) = W_\text{down} \cdot (\text{SiLU}(W_\text{gate} \cdot x) \odot W_\text{up} \cdot x)$$</p>
+<p>其中 $\odot$ 表示逐元素乘法。SwiGLU 通过一个"门控"机制让模型学会选择性地传递信息，效果优于传统的 ReLU。</p>
+<p>对应 MiniMind 代码（<code>model/model_minimind.py</code>）中的 <code>FeedForward</code> 类：</p>
+<pre class="highlight"><code class="language-python">class FeedForward(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.gate_proj = nn.Linear(config.hidden_size, config.intermediate_size, bias=False)
+        self.down_proj = nn.Linear(config.intermediate_size, config.hidden_size, bias=False)
+        self.up_proj = nn.Linear(config.hidden_size, config.intermediate_size, bias=False)
+
+    def forward(self, x):
+        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
+</code></pre>
+
+<h3 id="11-minimind-block">11. 把它们组合起来——MiniMind 的一个 Block</h3>
+<p>MiniMind 的每个 Transformer Block（<code>MiniMindBlock</code>）结构如下：</p>
+<pre class="highlight"><code>输入 x
+  │
+  ├── RMSNorm(x) → Self-Attention → + x    (残差连接)
+  │
+  ├── RMSNorm(x) → FFN (SwiGLU)   → + x    (残差连接)
+  │
+  输出
+</code></pre>
+
+<p>这就是 <strong>Pre-Norm + 残差连接</strong> 的标准模式。MiniMind 有 8 层这样的 Block 堆叠在一起（<code>num_hidden_layers=8</code>）。</p>
+<h3 id="12-minimind">12. MiniMind 的完整前向流程</h3>
+<pre class="highlight"><code>输入文字: &quot;今天天气&quot;
+    │
+    ▼
+[Tokenizer] → token_ids: [234, 567, 567, 891]
+    │
+    ▼
+[Embedding] → 每个 token 变成 768 维向量
+    │
+    ▼
+[RoPE 位置编码] → 给每个向量加上位置信息
+    │
+    ▼
+[Block 1] → RMSNorm → Attention(GQA) → 残差 → RMSNorm → FFN(SwiGLU) → 残差
+[Block 2] → 同上
+[Block 3] → 同上
+  ...
+[Block 8] → 同上
+    │
+    ▼
+[RMSNorm] → 最后做一次归一化
+    │
+    ▼
+[lm_head] → 768 维 → 6400 维（vocab_size，每个 token 一个分数）
+    │
+    ▼
+[softmax + 采样] → 选出下一个 token
+</code></pre>
+
+<hr />
+<h2 id="minimind">📂 对应 MiniMind 源码</h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>对应文件</th>
+<th>关键代码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>注意力机制（GQA + RoPE）</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class Attention</code> — Q/K/V 投影、RoPE 旋转、因果 mask、GQA repeat_kv</td>
+</tr>
+<tr>
+<td>前馈网络（SwiGLU）</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class FeedForward</code> — gate_proj / up_proj / down_proj + SiLU 激活</td>
+</tr>
+<tr>
+<td>Transformer Block</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class MiniMindBlock</code> — Pre-RMSNorm + Attention + FFN + 残差连接</td>
+</tr>
+<tr>
+<td>完整模型</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class MiniMindForCausalLM</code> — Embedding + N × Block + lm_head</td>
+</tr>
+<tr>
+<td>RMSNorm</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class RMSNorm</code> — 只做缩放的简化版 LayerNorm</td>
+</tr>
+<tr>
+<td>RoPE 位置编码</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>precompute_freqs_cis()</code> 和 <code>apply_rotary_emb()</code> 函数</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_13">🎤 面试考点</h2>
+<h3 id="q1-attention-d_k">Q1: Attention 公式中为什么要除以 √d_k？</h3>
+<p><strong>答</strong>：当 Key 的维度 $d_k$ 较大时，$QK^T$ 的点积结果会随维度增大而增大（方差约为 $d_k$）。如果不缩放，softmax 的输入值会非常大，导致梯度趋近于 0（梯度消失），模型无法有效学习。除以 $\sqrt{d_k}$ 将方差控制在 1 附近，使 softmax 的输出不会过于集中在某一个位置，保证梯度正常流动。这种做法也被称为 Scaled Dot-Product Attention。</p>
+<h3 id="q2">Q2: 残差连接的作用是什么？如果去掉会怎样？</h3>
+<p><strong>答</strong>：残差连接将层的输入直接加到层的输出上（$y = F(x) + x$），有三个主要作用：<br />
+1. <strong>缓解梯度消失</strong>：梯度可以通过"短路"直接传回浅层，避免在深层网络中消失；<br />
+2. <strong>使深层网络可训练</strong>：ResNet 论文证明，没有残差连接时，超过一定深度的网络性能反而下降（退化问题）；<br />
+3. <strong>保证下限</strong>：即使某一层完全没学到有用的变换，输出至少等于输入，不会变差。<br />
+如果去掉残差连接，Transformer 在 8 层以上时几乎无法训练，损失函数会不收敛。</p>
+<h3 id="q3-transformer-rnn">Q3: Transformer 相比 RNN 的并行性优势体现在哪里？</h3>
+<p><strong>答</strong>：RNN 处理序列是串行的——必须先处理第 1 个 token，拿到隐藏状态后才能处理第 2 个，依此类推。序列长度为 N，则需要 N 步串行计算。Transformer 的 Self-Attention 一次性计算所有 token 之间的关系（$QK^T$ 是一次矩阵乘法），序列中的所有位置可以并行处理。时间复杂度从 $O(N)$ 步串行降为 $O(1)$ 步并行（但空间复杂度是 $O(N^2)$，因为要存储 $N \times N$ 的注意力矩阵）。这使得 Transformer 在 GPU 上的训练速度远快于 RNN。</p>
+<h3 id="q4-gqagrouped-query-attentionminimind">Q4: 什么是 GQA（Grouped-Query Attention）？MiniMind 为什么用它？</h3>
+<p><strong>答</strong>：标准多头注意力（MHA）中，Q、K、V 各有 $h$ 个头。GQA 让 K 和 V 的头数少于 Q 的头数——多个 Q 头共享同一组 K/V 头。MiniMind 中 Q 有 8 个头，K/V 只有 4 个头，每 2 个 Q 头共享 1 组 K/V。好处是：(1) 减少 K/V 的参数量和 KV Cache 的显存占用（推理时尤为重要）；(2) 性能损失极小，因为 K/V 的多样性需求低于 Q。GQA 是 MHA（每组 1 个 Q 头）和 MQA（所有 Q 头共享 1 组 K/V）的折中方案。</p>
+<h3 id="q5-pre-norm-post-norm-minimind">Q5: Pre-Norm 和 Post-Norm 有什么区别？MiniMind 用哪种？</h3>
+<p><strong>答</strong>：Post-Norm（原始 Transformer）在子层之后做 LayerNorm：$y = \text{Norm}(F(x) + x)$。Pre-Norm 在子层之前做：$y = F(\text{Norm}(x)) + x$。MiniMind 采用 Pre-Norm（使用 RMSNorm）。Pre-Norm 的优势：(1) 训练更稳定，不需要 warm-up；(2) 梯度流动更顺畅，因为残差路径上没有 Norm 阻碍。缺点是理论上 Post-Norm 收敛后的效果上限可能略高，但在实践中 Pre-Norm 已成为大模型的标配。</p>
+<hr />
+<h2 id="_14">✅ 自测题</h2>
+<h3 id="1">题目 1（选择题）</h3>
+<p>在 Self-Attention 中，Q、K、V 分别代表什么角色？</p>
+<p>A. Q 是输入，K 是权重，V 是偏置<br />
+B. Q 是查询，K 是键，V 是值；Q 和 K 计算匹配度，用匹配度加权 V<br />
+C. Q 是编码器输出，K 是解码器输入，V 是最终输出<br />
+D. Q、K、V 是三种不同的激活函数  </p>
+<details>
+<summary>查看答案</summary>
+
+**B**。Q（Query）代表"我在找什么"，K（Key）代表"我有什么"，Q 和 K 的点积计算匹配度（注意力分数），经 softmax 归一化后作为权重，对 V（Value）做加权求和得到输出。
+
+</details>
+
+<h3 id="2">题目 2（选择题）</h3>
+<p>RNN 被 Transformer 取代的主要原因是什么？（多选）</p>
+<p>A. RNN 的长距离依赖问题——信息在传递过程中逐渐丢失<br />
+B. RNN 无法并行计算，训练速度慢<br />
+C. RNN 的参数量太大<br />
+D. RNN 不能处理中文  </p>
+<details>
+<summary>查看答案</summary>
+
+**A 和 B**。RNN 的两大核心缺陷是：(1) 长距离依赖问题，序列越长信息丢失越严重；(2) 串行计算导致无法利用 GPU 并行加速。C 错误（RNN 参数量通常比 Transformer 小）；D 错误（RNN 可以处理任何语言）。
+
+</details>
+
+<h3 id="3">题目 3（简答题）</h3>
+<p>请画出或描述 MiniMind 一个 Transformer Block 的完整结构（包括 Norm、Attention、FFN、残差连接的顺序）。</p>
+<details>
+<summary>查看答案</summary>
+
+MiniMind 使用 Pre-Norm 结构，一个 Block 的流程是：
+
+
+<pre class="highlight"><code>输入 x
+  → RMSNorm(x)
+  → Self-Attention（GQA，带 RoPE 和因果 mask）
+  → + x（残差连接）→ 得到 x'
+  → RMSNorm(x')
+  → FFN（SwiGLU）
+  → + x'（残差连接）→ 输出
+</code></pre>
+
+
+
+关键点：(1) 归一化在子层之前（Pre-Norm）；(2) 每个子层后都有残差连接；(3) Attention 使用 GQA（8 个 Q 头，4 个 KV 头）和 RoPE；(4) FFN 使用 SwiGLU 激活。
+
+</details>
+
+<hr />
+<h2 id="_15">🔮 下一节预告</h2>
+<p>Transformer 的原理搞明白了，但要真正看懂 MiniMind 的代码，我们还需要一个<strong>工具</strong>——PyTorch。下一节我们将快速上手 PyTorch，学会 Tensor 操作、自动求导、以及如何用代码搭建一个简单的神经网络。</p>
+<p>👉 <strong>L03 - PyTorch 快速上手：工欲善其事，必先利其器</strong></p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L21 - 部署与应用 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l21-">L21 - 部署与应用</h1>
+<blockquote>
+<p><strong>"从实验室走向生产"</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">本节目标</h2>
+<ol>
+<li>掌握模型格式转换流程：PyTorch → Transformers → GGUF</li>
+<li>学会使用 ollama、vLLM、llama.cpp 部署 MiniMind</li>
+<li>理解 MiniMind 的 OpenAI API 兼容接口</li>
+<li>了解 Tool Calling 和 Adaptive Thinking 功能</li>
+<li>了解 Streamlit WebUI 和第三方 UI 接入</li>
+<li>了解 DDP 多卡训练的基本概念</li>
+</ol>
+<hr />
+<h2 id="_2">前置知识</h2>
+<ul>
+<li>L20 推理优化（KV-Cache、生成策略）</li>
+<li>基本的命令行操作</li>
+<li>了解 HTTP API 的概念</li>
+<li>了解 Docker 基本概念（可选）</li>
+</ul>
+<hr />
+<h2 id="_3">一、模型格式转换</h2>
+<h3 id="11">1.1 为什么需要格式转换</h3>
+<p>MiniMind 训练时使用 PyTorch 原生格式（<code>.pth</code> 文件），但不同推理框架有各自的格式要求：</p>
+<pre class="highlight"><code>PyTorch (.pth)
+    ↓ 转换
+Transformers (HuggingFace 格式)
+    ↓ 转换
+GGUF (llama.cpp / ollama 格式)
+</code></pre>
+
+<h3 id="12-pytorch-transformers">1.2 PyTorch → Transformers</h3>
+<p>Transformers 格式是 HuggingFace 生态的标准，包含：</p>
+<pre class="highlight"><code>model_directory/
+├── config.json              # 模型配置
+├── model.safetensors        # 模型权重（safetensors 格式）
+├── tokenizer.json           # 分词器
+├── tokenizer_config.json    # 分词器配置
+└── generation_config.json   # 生成配置
+</code></pre>
+
+<p>MiniMind 提供了转换脚本，核心逻辑：</p>
+<pre class="highlight"><code class="language-python"># 加载 PyTorch 模型
+state_dict = torch.load(&quot;minimind.pth&quot;, map_location=&quot;cpu&quot;)
+
+# 映射权重名称到 Transformers 格式
+mapping = {
+    &quot;tok_embeddings.weight&quot;: &quot;model.embed_tokens.weight&quot;,
+    &quot;layers.{}.attention.wq.weight&quot;: &quot;model.layers.{}.self_attn.q_proj.weight&quot;,
+    &quot;layers.{}.attention.wk.weight&quot;: &quot;model.layers.{}.self_attn.k_proj.weight&quot;,
+    &quot;layers.{}.attention.wv.weight&quot;: &quot;model.layers.{}.self_attn.v_proj.weight&quot;,
+    # ... 更多映射
+}
+
+# 保存为 Transformers 格式
+model.save_pretrained(&quot;minimind-hf&quot;)
+tokenizer.save_pretrained(&quot;minimind-hf&quot;)
+</code></pre>
+
+<h3 id="13-transformers-gguf">1.3 Transformers → GGUF</h3>
+<p>GGUF（GPT-Generated Unified Format）是 llama.cpp 项目定义的模型格式，支持各种量化级别：</p>
+<pre class="highlight"><code class="language-bash"># 使用 llama.cpp 提供的转换脚本
+python convert_hf_to_gguf.py minimind-hf/ --outfile minimind.gguf --outtype f16
+
+# 进一步量化
+./llama-quantize minimind.gguf minimind-Q4_K_M.gguf Q4_K_M
+</code></pre>
+
+<p>常见量化格式：<br />
+| 格式 | 每参数位数 | 精度损失 | 适用场景 |<br />
+|------|-----------|---------|---------|<br />
+| F16 | 16 bit | 无 | 精度优先 |<br />
+| Q8_0 | 8 bit | 极小 | 平衡 |<br />
+| Q5_K_M | ~5.5 bit | 小 | 推荐 |<br />
+| Q4_K_M | ~4.5 bit | 中等 | 速度优先 |<br />
+| Q2_K | ~2.5 bit | 较大 | 极端压缩 |</p>
+<hr />
+<h2 id="ollama">二、ollama 部署</h2>
+<h3 id="21-ollama">2.1 什么是 ollama</h3>
+<p>ollama 是一个简单易用的本地 LLM 运行工具，类似于 Docker 的操作体验——拉取模型，一键运行。</p>
+<h3 id="22-minimind">2.2 直接运行 MiniMind</h3>
+<pre class="highlight"><code class="language-bash"># MiniMind 已经上传到 ollama 模型库
+ollama run jingyaogong/minimind-3
+</code></pre>
+
+<p>就这么简单！ollama 会自动下载模型文件并启动对话界面。</p>
+<h3 id="23-modelfile">2.3 自定义 Modelfile</h3>
+<p>如果你想自定义推理参数，可以创建 Modelfile：</p>
+<pre class="highlight"><code class="language-dockerfile">FROM minimind.gguf
+
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 50
+PARAMETER repeat_penalty 1.1
+
+SYSTEM &quot;&quot;&quot;你是MiniMind，一个小型但有用的AI助手。&quot;&quot;&quot;
+</code></pre>
+
+<p>然后构建并运行：</p>
+<pre class="highlight"><code class="language-bash">ollama create my-minimind -f Modelfile
+ollama run my-minimind
+</code></pre>
+
+<h3 id="24-ollama-api">2.4 ollama API</h3>
+<p>ollama 默认启动在 <code>localhost:11434</code>，提供 REST API：</p>
+<pre class="highlight"><code class="language-bash"># 生成回答
+curl http://localhost:11434/api/generate -d '{
+  &quot;model&quot;: &quot;jingyaogong/minimind-3&quot;,
+  &quot;prompt&quot;: &quot;什么是机器学习？&quot;,
+  &quot;stream&quot;: false
+}'
+
+# 对话模式
+curl http://localhost:11434/api/chat -d '{
+  &quot;model&quot;: &quot;jingyaogong/minimind-3&quot;,
+  &quot;messages&quot;: [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;你好&quot;}
+  ]
+}'
+</code></pre>
+
+<hr />
+<h2 id="vllm">三、vLLM 部署</h2>
+<h3 id="31-vllm">3.1 什么是 vLLM</h3>
+<p>vLLM 是一个高吞吐量的 LLM 推理引擎，专为<strong>服务端部署</strong>设计。核心技术是 <strong>PagedAttention</strong>——把 KV-Cache 像操作系统管理虚拟内存一样分页管理，大幅提高 GPU 内存利用率和并发请求处理能力。</p>
+<h3 id="32-vllm">3.2 vLLM 的核心优势</h3>
+<ol>
+<li><strong>PagedAttention</strong>：解决 KV-Cache 内存碎片问题，提高显存利用率</li>
+<li><strong>连续批处理（Continuous Batching）</strong>：动态地将新请求插入正在处理的 batch，不用等当前 batch 全部完成</li>
+<li><strong>高吞吐</strong>：比朴素实现快 2-24 倍</li>
+<li><strong>OpenAI 兼容 API</strong>：可以直接替换 OpenAI 的 API 接口</li>
+</ol>
+<h3 id="33-vllm-minimind">3.3 使用 vLLM 部署 MiniMind</h3>
+<pre class="highlight"><code class="language-bash"># 安装 vLLM
+pip install vllm
+
+# 启动推理服务（需要 Transformers 格式的模型）
+python -m vllm.entrypoints.openai.api_server \
+    --model minimind-hf/ \
+    --host 0.0.0.0 \
+    --port 8000
+</code></pre>
+
+<p>然后就可以用 OpenAI 兼容的 API 访问：</p>
+<pre class="highlight"><code class="language-python">from openai import OpenAI
+
+client = OpenAI(base_url=&quot;http://localhost:8000/v1&quot;, api_key=&quot;none&quot;)
+
+response = client.chat.completions.create(
+    model=&quot;minimind-hf&quot;,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;你好&quot;}],
+    temperature=0.7,
+)
+print(response.choices[0].message.content)
+</code></pre>
+
+<hr />
+<h2 id="llamacpp">四、llama.cpp 部署</h2>
+<h3 id="41-llamacpp">4.1 什么是 llama.cpp</h3>
+<p>llama.cpp 是一个纯 C/C++ 实现的 LLM 推理框架，可以在 <strong>CPU 上</strong>高效运行大语言模型，不需要 GPU。</p>
+<h3 id="42">4.2 核心优势</h3>
+<ol>
+<li><strong>纯 CPU 推理</strong>：不需要 GPU，笔记本电脑也能跑</li>
+<li><strong>多种量化</strong>：支持 Q2 到 Q8 各种量化级别</li>
+<li><strong>跨平台</strong>：支持 Linux、macOS、Windows、Android</li>
+<li><strong>低依赖</strong>：不需要 Python、PyTorch 等</li>
+</ol>
+<h3 id="43-llamacpp-minimind">4.3 使用 llama.cpp 运行 MiniMind</h3>
+<pre class="highlight"><code class="language-bash"># 编译 llama.cpp
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp &amp;&amp; make
+
+# 运行（需要 GGUF 格式模型）
+./llama-cli -m minimind-Q4_K_M.gguf \
+    -p &quot;请介绍一下人工智能&quot; \
+    -n 256 \
+    --temp 0.7
+</code></pre>
+
+<h3 id="44-vllm-vs-llamacpp">4.4 vLLM vs llama.cpp</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>vLLM</th>
+<th>llama.cpp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>硬件需求</td>
+<td>GPU</td>
+<td>CPU（也支持 GPU）</td>
+</tr>
+<tr>
+<td>并发处理</td>
+<td>优秀（Continuous Batching）</td>
+<td>较弱</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>高并发服务端</td>
+<td>个人设备、边缘部署</td>
+</tr>
+<tr>
+<td>速度</td>
+<td>极快（GPU 加速）</td>
+<td>较慢（CPU 受限）</td>
+</tr>
+<tr>
+<td>模型格式</td>
+<td>HuggingFace</td>
+<td>GGUF</td>
+</tr>
+<tr>
+<td>量化支持</td>
+<td>GPTQ/AWQ</td>
+<td>GGUF 内置量化</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="minimind-openai">五、MiniMind OpenAI 兼容接口</h2>
+<h3 id="51-serve_openai_apipy">5.1 serve_openai_api.py</h3>
+<p>MiniMind 自带一个 OpenAI API 兼容的服务脚本 <code>serve_openai_api.py</code>，使用 FastAPI 实现：</p>
+<pre class="highlight"><code class="language-python">from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    model: str
+    messages: list[ChatMessage]
+    temperature: float = 0.7
+    top_p: float = 0.9
+    max_tokens: int = 512
+    stream: bool = False
+
+@app.post(&quot;/v1/chat/completions&quot;)
+async def chat_completions(request: ChatRequest):
+    # 构建 prompt
+    prompt = build_prompt(request.messages)
+
+    # 模型推理
+    response = model.generate(
+        prompt,
+        temperature=request.temperature,
+        top_p=request.top_p,
+        max_tokens=request.max_tokens
+    )
+
+    # 返回 OpenAI 格式的响应
+    return {
+        &quot;id&quot;: f&quot;chatcmpl-{uuid4()}&quot;,
+        &quot;object&quot;: &quot;chat.completion&quot;,
+        &quot;model&quot;: request.model,
+        &quot;choices&quot;: [{
+            &quot;index&quot;: 0,
+            &quot;message&quot;: {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: response},
+            &quot;finish_reason&quot;: &quot;stop&quot;
+        }]
+    }
+</code></pre>
+
+<h3 id="52">5.2 启动服务</h3>
+<pre class="highlight"><code class="language-bash">python serve_openai_api.py --model_path out/minimind --port 8080
+</code></pre>
+
+<p>启动后可以用任何支持 OpenAI API 的客户端连接：</p>
+<pre class="highlight"><code class="language-python">from openai import OpenAI
+
+client = OpenAI(base_url=&quot;http://localhost:8080/v1&quot;, api_key=&quot;none&quot;)
+response = client.chat.completions.create(
+    model=&quot;minimind&quot;,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;1+1=?&quot;}]
+)
+</code></pre>
+
+<hr />
+<h2 id="streamlit-webui">六、Streamlit WebUI</h2>
+<h3 id="61-web_demopy">6.1 web_demo.py</h3>
+<p>MiniMind 提供了基于 Streamlit 的 Web 演示界面：</p>
+<pre class="highlight"><code class="language-bash">streamlit run web_demo.py
+</code></pre>
+
+<p>打开浏览器访问 <code>http://localhost:8501</code>，可以进行对话。</p>
+<h3 id="62">6.2 核心实现</h3>
+<pre class="highlight"><code class="language-python">import streamlit as st
+
+st.title(&quot;MiniMind Chat&quot;)
+
+# 会话历史
+if &quot;messages&quot; not in st.session_state:
+    st.session_state.messages = []
+
+# 显示历史消息
+for msg in st.session_state.messages:
+    with st.chat_message(msg[&quot;role&quot;]):
+        st.write(msg[&quot;content&quot;])
+
+# 用户输入
+if prompt := st.chat_input(&quot;请输入你的问题&quot;):
+    st.session_state.messages.append({&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: prompt})
+
+    with st.chat_message(&quot;user&quot;):
+        st.write(prompt)
+
+    # 模型生成
+    with st.chat_message(&quot;assistant&quot;):
+        response = model.generate(prompt)
+        st.write(response)
+
+    st.session_state.messages.append({&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: response})
+</code></pre>
+
+<hr />
+<h2 id="tool-calling">七、Tool Calling 功能</h2>
+<h3 id="71-tool-calling">7.1 什么是 Tool Calling</h3>
+<p>Tool Calling（工具调用）让 LLM 不仅能生成文本，还能调用外部工具（如搜索引擎、计算器、API 等）。</p>
+<pre class="highlight"><code>用户: 今天北京天气怎么样？
+模型: [调用天气API] → 获取结果 → 北京今天晴，25度
+</code></pre>
+
+<h3 id="72-minimind-tool-calling">7.2 MiniMind 的 Tool Calling 实现</h3>
+<p>MiniMind 使用特殊标签来标识工具调用：</p>
+<pre class="highlight"><code>用户消息: 帮我查一下北京的天气
+
+模型输出:
+&lt;tool_call&gt;
+{&quot;name&quot;: &quot;get_weather&quot;, &quot;arguments&quot;: {&quot;city&quot;: &quot;北京&quot;}}
+&lt;/tool_call&gt;
+
+系统执行工具后返回:
+&lt;tool_response&gt;
+{&quot;temperature&quot;: 25, &quot;weather&quot;: &quot;晴&quot;, &quot;humidity&quot;: 40}
+&lt;/tool_response&gt;
+
+模型继续生成:
+北京今天天气晴朗，气温25度，湿度40%，非常适合出门。
+</code></pre>
+
+<h3 id="73">7.3 工具定义格式</h3>
+<p>在系统消息中定义可用工具：</p>
+<pre class="highlight"><code class="language-json">{
+  &quot;tools&quot;: [
+    {
+      &quot;type&quot;: &quot;function&quot;,
+      &quot;function&quot;: {
+        &quot;name&quot;: &quot;get_weather&quot;,
+        &quot;description&quot;: &quot;获取指定城市的天气信息&quot;,
+        &quot;parameters&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;city&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;description&quot;: &quot;城市名称&quot;
+            }
+          },
+          &quot;required&quot;: [&quot;city&quot;]
+        }
+      }
+    }
+  ]
+}
+</code></pre>
+
+<h3 id="74-eval_toolcallpy">7.4 eval_toolcall.py 示例</h3>
+<p>MiniMind 提供了 <code>eval_toolcall.py</code> 来演示和评估 Tool Calling 功能：</p>
+<pre class="highlight"><code class="language-python"># 定义工具
+tools = [
+    {
+        &quot;name&quot;: &quot;calculator&quot;,
+        &quot;description&quot;: &quot;进行数学计算&quot;,
+        &quot;parameters&quot;: {&quot;expression&quot;: &quot;string&quot;}
+    },
+    {
+        &quot;name&quot;: &quot;search&quot;,
+        &quot;description&quot;: &quot;搜索信息&quot;,
+        &quot;parameters&quot;: {&quot;query&quot;: &quot;string&quot;}
+    }
+]
+
+# 构建包含工具定义的 prompt
+system_prompt = f&quot;你可以使用以下工具：{json.dumps(tools, ensure_ascii=False)}&quot;
+
+# 模型生成
+response = model.generate(system_prompt + &quot;\n&quot; + user_query)
+
+# 解析 &lt;tool_call&gt; 标签
+if &quot;&lt;tool_call&gt;&quot; in response:
+    tool_call = extract_tool_call(response)
+    # 执行工具
+    tool_result = execute_tool(tool_call)
+    # 将结果注入并继续生成
+    response += f&quot;\n&lt;tool_response&gt;{json.dumps(tool_result)}&lt;/tool_response&gt;\n&quot;
+    final_response = model.generate(response)
+</code></pre>
+
+<h3 id="75-tool-calling">7.5 Tool Calling 的训练</h3>
+<p>Tool Calling 能力不是天生的，需要在 SFT 阶段用包含工具调用的训练数据来教会模型：</p>
+<ol>
+<li>识别何时需要调用工具</li>
+<li>生成正确的 <code>&lt;tool_call&gt;</code> 标签和 JSON 参数</li>
+<li>理解 <code>&lt;tool_response&gt;</code> 中的结果</li>
+<li>基于工具结果生成最终回答</li>
+</ol>
+<hr />
+<h2 id="adaptive-thinking">八、Adaptive Thinking（自适应思考）</h2>
+<h3 id="81-adaptive-thinking">8.1 什么是 Adaptive Thinking</h3>
+<p>受 OpenAI o1 等推理模型的启发，MiniMind 实现了自适应思考功能。模型在回答前先在 <code>&lt;think&gt;</code> 标签中进行"思考"：</p>
+<pre class="highlight"><code>用户: 123 × 456 等于多少？
+
+模型输出:
+&lt;think&gt;
+让我计算一下...
+123 × 456
+= 123 × 400 + 123 × 56
+= 49200 + 6888
+= 56088
+&lt;/think&gt;
+
+123 × 456 = 56088
+</code></pre>
+
+<h3 id="82-open_thinking">8.2 open_thinking 开关</h3>
+<p>MiniMind 提供 <code>open_thinking</code> 参数来控制是否启用思考模式：</p>
+<pre class="highlight"><code class="language-python"># 开启思考模式
+response = model.generate(prompt, open_thinking=True)
+
+# 关闭思考模式
+response = model.generate(prompt, open_thinking=False)
+</code></pre>
+
+<ul>
+<li><strong>开启时</strong>：模型会先输出 <code>&lt;think&gt;...&lt;/think&gt;</code> 进行推理，然后给出答案</li>
+<li><strong>关闭时</strong>：模型直接输出答案，不做显式思考</li>
+</ul>
+<h3 id="83">8.3 实现原理</h3>
+<pre class="highlight"><code class="language-python">def generate_with_thinking(model, prompt, open_thinking=True):
+    if open_thinking:
+        # 在 prompt 后追加 &lt;think&gt; 标签，引导模型开始思考
+        prompt = prompt + &quot;&lt;think&gt;\n&quot;
+
+    response = model.generate(prompt)
+
+    if open_thinking:
+        # 解析思考内容和最终回答
+        think_content, answer = parse_thinking(response)
+        return think_content, answer
+    else:
+        return None, response
+</code></pre>
+
+<hr />
+<h2 id="ui">九、接入第三方 UI</h2>
+<h3 id="91-fastgpt">9.1 FastGPT</h3>
+<p>FastGPT 是一个开源的知识库问答系统，支持通过 OpenAI API 接入自定义模型：</p>
+<pre class="highlight"><code class="language-yaml"># FastGPT 配置
+OPENAI_BASE_URL=http://localhost:8080/v1
+CHAT_API_KEY=none
+</code></pre>
+
+<h3 id="92-open-webui">9.2 Open-WebUI</h3>
+<p>Open-WebUI（前 Ollama-WebUI）提供了美观的 ChatGPT 风格界面：</p>
+<pre class="highlight"><code class="language-bash"># 通过 Docker 启动
+docker run -d --name open-webui \
+    -p 3000:8080 \
+    -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+    ghcr.io/open-webui/open-webui:main
+</code></pre>
+
+<p>配置好后，选择 MiniMind 模型即可进行对话。</p>
+<hr />
+<h2 id="ddp">十、DDP 多卡训练简介</h2>
+<h3 id="101-ddp">10.1 什么是 DDP</h3>
+<p>DDP（Distributed Data Parallel）是 PyTorch 的分布式数据并行训练方式。每张 GPU 持有模型的完整副本，但处理不同的数据子集。</p>
+<h3 id="102-ddp">10.2 DDP 的工作原理</h3>
+<pre class="highlight"><code>GPU 0: 模型副本 → 数据子集 A → 计算梯度 ─┐
+GPU 1: 模型副本 → 数据子集 B → 计算梯度 ─┤ → AllReduce → 平均梯度 → 各自更新
+GPU 2: 模型副本 → 数据子集 C → 计算梯度 ─┤
+GPU 3: 模型副本 → 数据子集 D → 计算梯度 ─┘
+</code></pre>
+
+<h3 id="103-minimind-ddp">10.3 MiniMind 的 DDP 训练</h3>
+<pre class="highlight"><code class="language-bash"># 使用 torchrun 启动 DDP 训练
+torchrun --nproc_per_node=4 train.py \
+    --use_ddp \
+    --batch_size 32
+</code></pre>
+
+<p>核心代码变更：</p>
+<pre class="highlight"><code class="language-python">import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+# 初始化分布式环境
+dist.init_process_group(backend='nccl')
+local_rank = int(os.environ['LOCAL_RANK'])
+torch.cuda.set_device(local_rank)
+
+# 包装模型
+model = model.to(local_rank)
+model = DDP(model, device_ids=[local_rank])
+
+# 数据 Sampler
+sampler = DistributedSampler(dataset)
+dataloader = DataLoader(dataset, sampler=sampler)
+</code></pre>
+
+<h3 id="104-ddp">10.4 DDP 的注意事项</h3>
+<ol>
+<li><strong>batch_size</strong>：每张 GPU 的 local batch_size × GPU 数量 = 全局 batch_size</li>
+<li><strong>学习率</strong>：通常全局 batch_size 增大时需要相应增大学习率（线性缩放法则）</li>
+<li><strong>随机种子</strong>：各 GPU 的数据采样不同，但模型初始化要一致</li>
+<li><strong>保存模型</strong>：只在 rank 0 保存模型</li>
+</ol>
+<hr />
+<h2 id="_4">🎤 面试考点</h2>
+<h3 id="q1">Q1: 模型部署有哪些常见方案？各适用什么场景？</h3>
+<p><strong>答</strong>：<br />
+- <strong>ollama</strong>：简单易用，适合个人本地使用和快速原型<br />
+- <strong>vLLM</strong>：高吞吐，适合服务端高并发部署，需要 GPU<br />
+- <strong>llama.cpp</strong>：纯 CPU 推理，适合无 GPU 环境、边缘设备、移动端<br />
+- <strong>自建 API 服务</strong>：灵活定制，适合特定业务需求</p>
+<h3 id="q2-vllm-llamacpp">Q2: vLLM 和 llama.cpp 的核心区别是什么？</h3>
+<p><strong>答</strong>：<br />
+vLLM 面向<strong>高并发 GPU 推理</strong>，核心技术是 PagedAttention 和 Continuous Batching，吞吐量极高；llama.cpp 面向<strong>低资源 CPU 推理</strong>，核心是高效的 C++ 实现和多种量化格式支持。前者适合服务端，后者适合端侧。</p>
+<h3 id="q3-tool-calling">Q3: Tool Calling 是怎么实现的？</h3>
+<p><strong>答</strong>：Tool Calling 通过在 SFT 阶段训练模型识别需要调用工具的场景，输出包含 <code>&lt;tool_call&gt;</code> 标签的结构化 JSON。外部系统解析 JSON 执行工具后，将结果通过 <code>&lt;tool_response&gt;</code> 标签注入上下文，模型基于工具结果继续生成最终回答。本质上是通过特殊标记实现的 structured generation。</p>
+<h3 id="q4-gguf">Q4: 什么是 GGUF 格式？为什么需要它？</h3>
+<p><strong>答</strong>：GGUF 是 llama.cpp 定义的统一模型格式，支持在文件中嵌入各种量化的权重、模型配置和分词器信息。需要它是因为 llama.cpp 是 C++ 实现，无法直接加载 PyTorch 格式的模型。GGUF 格式还支持 mmap 加载，启动速度快。</p>
+<h3 id="q5-pagedattention">Q5: PagedAttention 是什么？解决什么问题？</h3>
+<p><strong>答</strong>：PagedAttention 是 vLLM 的核心技术，将 KV-Cache 分成固定大小的"页"，像操作系统管理虚拟内存一样管理 KV-Cache。它解决了传统 KV-Cache 预分配导致的内存碎片和浪费问题，显著提高了 GPU 显存利用率，使得同样的显存可以处理更多并发请求。</p>
+<h3 id="q6-ddp">Q6: DDP 和模型并行有什么区别？</h3>
+<p><strong>答</strong>：DDP（数据并行）是每张 GPU 持有完整的模型副本，处理不同数据子集，用 AllReduce 同步梯度。模型并行是把模型切分放到不同 GPU 上（Tensor Parallel 切层内参数、Pipeline Parallel 切层间）。DDP 适用于模型能放进单卡显存的场景；模型并行适用于模型太大放不下单卡的场景。</p>
+<hr />
+<h2 id="_5">✅ 自测题</h2>
+<ol>
+<li><strong>填空</strong>：MiniMind 的模型格式转换路径是 PyTorch → <strong><em>_ → </em></strong>_。</li>
+<li><strong>判断</strong>：llama.cpp 只能在 CPU 上运行。（对/错）</li>
+<li><strong>选择</strong>：以下哪个不是 vLLM 的核心技术？</li>
+<li>A. PagedAttention</li>
+<li>B. Continuous Batching</li>
+<li>C. FlashAttention</li>
+<li>D. KV-Cache 分页管理</li>
+<li><strong>简答</strong>：MiniMind 的 Tool Calling 使用了哪些特殊标签？工作流程是什么？</li>
+<li><strong>操作题</strong>：写出使用 ollama 运行 MiniMind 的命令。</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+
+1. Transformers（HuggingFace 格式）→ GGUF
+2. 错。llama.cpp 也支持 GPU 加速（CUDA/Metal），但它的核心优势是 CPU 推理。
+3. C。FlashAttention 是 Attention 计算优化技术，不是 vLLM 特有的（虽然 vLLM 也用它）。PagedAttention 才是 vLLM 的核心创新。
+4. 使用 `<tool_call>` 和 `<tool_response>` 标签。流程：模型识别需要工具调用 → 输出 `<tool_call>{JSON}</tool_call>` → 外部系统执行工具 → 返回 `<tool_response>{结果}</tool_response>` → 模型根据结果生成最终回答。
+5. `ollama run jingyaogong/minimind-3`
+
+</details>
+
+<hr />
+<h2 id="_6">下一节预告</h2>
+<p>下一节是本教程的最后一课——<strong>面试通关指南</strong>。我们将系统梳理如何把 MiniMind 项目写进简历、面试中如何介绍、面试官最常问的 Top 20 问题的标准答案，以及深挖追问的应对策略。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

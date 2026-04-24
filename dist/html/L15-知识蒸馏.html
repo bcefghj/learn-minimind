@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L15 - 知识蒸馏 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l15-">L15 - 知识蒸馏</h1>
+<blockquote>
+<p><em>"青出于蓝而胜于蓝"</em></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解知识蒸馏的核心思想：教师模型 → 学生模型</li>
+<li>区分黑盒蒸馏与白盒蒸馏</li>
+<li><strong>掌握白盒蒸馏的损失函数和温度 T 的作用</strong></li>
+<li>理解 KL 散度的含义</li>
+<li>能读懂 MiniMind 的蒸馏实现</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>L12 预训练（交叉熵损失）</li>
+<li>L13 监督微调 SFT</li>
+<li>概率分布和信息论基础（Softmax、熵）</li>
+</ul>
+<hr />
+<h2 id="1">1. 什么是知识蒸馏？</h2>
+<h3 id="11">1.1 直觉理解</h3>
+<p>想象一位经验丰富的教授（<strong>教师模型</strong>，Teacher）和一位刚入学的学生（<strong>学生模型</strong>，Student）。</p>
+<p>传统训练方式：学生只看教科书（标签数据）学习。<br />
+知识蒸馏：学生不仅看教科书，还听教授讲课（获取教授的思考过程）。</p>
+<p>教授的"思考过程"是什么？就是教师模型对每个 token 输出的<strong>完整概率分布</strong>——不仅告诉你答案是"猫"，还告诉你"狗"的概率是 0.1、"虎"的概率是 0.05......这些"软信息"包含了丰富的知识。</p>
+<h3 id="12">1.2 为什么需要蒸馏？</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>大模型太大</td>
+<td>GPT-4 级别的模型无法部署到手机或嵌入式设备</td>
+</tr>
+<tr>
+<td>推理成本高</td>
+<td>大模型的 API 调用成本高</td>
+</tr>
+<tr>
+<td>小模型太弱</td>
+<td>直接训练小模型效果不够好</td>
+</tr>
+<tr>
+<td><strong>蒸馏的价值</strong></td>
+<td>让小模型获得接近大模型的效果</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-vs">2. 黑盒蒸馏 vs 白盒蒸馏</h2>
+<h3 id="21">2.1 黑盒蒸馏</h3>
+<p><strong>黑盒蒸馏</strong>不需要接触教师模型的内部状态，只使用教师模型的<strong>输出结果</strong>。</p>
+<pre class="highlight"><code>教师模型（大模型）
+    │
+    ▼ 生成文本（硬标签）
+&quot;量子纠缠是一种量子力学现象，当两个粒子...&quot;
+    │
+    ▼ 作为训练数据
+学生模型（小模型）← 像正常 SFT 一样训练
+</code></pre>
+
+<p>本质上就是：<strong>用大模型生成高质量数据，然后用这些数据训练小模型</strong>。</p>
+<p>MiniMind 的黑盒蒸馏：SFT 数据中大量高质量回答来自 <strong>Qwen3、DeepSeek R1</strong> 等强模型。这些数据本身就是黑盒蒸馏的产物。</p>
+<h3 id="22">2.2 白盒蒸馏</h3>
+<p><strong>白盒蒸馏</strong>需要访问教师模型的<strong>内部状态</strong>（logits 分布），不仅学习"正确答案"，还学习教师的"思考方式"。</p>
+<pre class="highlight"><code>教师模型（大模型）
+    │
+    ▼ 输出 logits 分布（软标签）
+[猫: 0.7, 狗: 0.15, 虎: 0.05, 兔: 0.03, ...]
+    │
+    ▼ KL 散度损失
+学生模型（小模型）← 学习匹配教师的分布
+</code></pre>
+
+<h3 id="23">2.3 对比总结</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>黑盒蒸馏</th>
+<th>白盒蒸馏</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>需要教师模型内部状态</td>
+<td>否</td>
+<td>是（需要 logits）</td>
+</tr>
+<tr>
+<td>信息量</td>
+<td>少（只有硬标签）</td>
+<td>多（完整概率分布）</td>
+</tr>
+<tr>
+<td>实现难度</td>
+<td>低（生成数据+SFT）</td>
+<td>高（需要同时运行两个模型）</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>教师模型只能通过 API 访问</td>
+<td>教师模型可以本地运行</td>
+</tr>
+<tr>
+<td>效果</td>
+<td>好</td>
+<td>通常更好</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-vs">3. 硬标签 vs 软标签</h2>
+<h3 id="31">3.1 什么是硬标签？</h3>
+<p>硬标签就是 one-hot 编码——只告诉你正确答案是什么：</p>
+<pre class="highlight"><code>正确答案: &quot;猫&quot;
+硬标签: [0, 0, 1, 0, 0, ...]  ← 只有&quot;猫&quot;的位置是1
+</code></pre>
+
+<h3 id="32">3.2 什么是软标签？</h3>
+<p>软标签是模型输出的完整概率分布：</p>
+<pre class="highlight"><code>教师模型输出:
+软标签: [0.01, 0.02, 0.70, 0.15, 0.05, 0.03, ...]
+         鸟     鱼     猫     狗     虎     兔
+</code></pre>
+
+<h3 id="33">3.3 软标签包含更多信息</h3>
+<p>关键洞察：软标签中"猫和狗的概率接近"这个信息非常有价值——它告诉学生模型，猫和狗在视觉/语义上是相似的，而猫和鱼的差异很大。</p>
+<p><strong>硬标签</strong>只说"答案是猫"。<br />
+<strong>软标签</strong>说"答案最可能是猫，但和狗也有一定相似性，和鱼差很远"。</p>
+<p>这些隐含的关系信息被称为 <strong>dark knowledge</strong>（暗知识），是蒸馏的核心价值。</p>
+<hr />
+<h2 id="4-t">4. 温度 T 的作用</h2>
+<h3 id="41-softmax">4.1 带温度的 Softmax</h3>
+<p>标准 Softmax：</p>
+<p>$$p_i = \frac{\exp(z_i)}{\sum_j \exp(z_j)}$$</p>
+<p>带温度的 Softmax：</p>
+<p>$$p_i^T = \frac{\exp(z_i / T)}{\sum_j \exp(z_j / T)}$$</p>
+<p>其中 (T) 是温度参数。</p>
+<h3 id="42">4.2 温度对分布的影响</h3>
+<p>假设 logits 为 [5.0, 2.0, 1.0]：</p>
+<table>
+<thead>
+<tr>
+<th>温度 T</th>
+<th>Softmax 分布</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.5</td>
+<td>[0.993, 0.006, 0.001]</td>
+<td>更"尖锐"，集中在最大值</td>
+</tr>
+<tr>
+<td>1.0</td>
+<td>[0.844, 0.114, 0.042]</td>
+<td>标准分布</td>
+</tr>
+<tr>
+<td>2.0</td>
+<td>[0.656, 0.220, 0.124]</td>
+<td>更"平缓"</td>
+</tr>
+<tr>
+<td>5.0</td>
+<td>[0.465, 0.284, 0.251]</td>
+<td>非常"平缓"，接近均匀</td>
+</tr>
+<tr>
+<td>→∞</td>
+<td>[0.333, 0.333, 0.333]</td>
+<td>完全均匀分布</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43">4.3 为什么蒸馏需要高温度？</h3>
+<p>当 (T=1) 时，教师模型的输出分布通常非常"尖锐"——正确答案的概率远高于其他选项，接近硬标签。此时软标签携带的额外信息有限。</p>
+<p>提高温度 (T)，分布变得更"平缓"：<br />
+- 不同类别之间的概率差异被放大<br />
+- "暗知识"得以显现<br />
+- 学生能学到更多类别间的关系</p>
+<p><strong>常用温度</strong>：T = 2~5。MiniMind 通常使用 T = 2。</p>
+<h3 id="44">4.4 温度的直觉类比</h3>
+<p>想象一位教授批改试卷：<br />
+- <strong>T=1（低温）</strong>："A 选项对，BCD 都错。"——信息量少<br />
+- <strong>T=3（高温）</strong>："A 选项最对（70分），B 也有道理（20分），C 部分正确（8分），D 完全不对（2分）。"——信息量丰富</p>
+<hr />
+<h2 id="5">5. 白盒蒸馏的损失函数</h2>
+<h3 id="51">5.1 完整损失公式</h3>
+<p>白盒蒸馏的损失函数由两部分组成：</p>
+<p>$$\mathcal{L} = \alpha \cdot \mathcal{L}<em>{\text{CE}} + (1 - \alpha) \cdot T^2 \cdot \mathcal{L}</em>{\text{KL}}$$</p>
+<p>其中：<br />
+- (\mathcal{L}<em>{\text{CE}})：<strong>硬标签损失</strong>——学生预测 vs 真实标签的交叉熵<br />
+- (\mathcal{L}</em>{\text{KL}})：<strong>软标签损失</strong>——学生分布 vs 教师分布的 KL 散度<br />
+- (\alpha)：平衡系数（通常 0.1~0.5）<br />
+- (T)：温度<br />
+- (T^2)：补偿因子（下面解释）</p>
+<h3 id="52">5.2 硬标签损失</h3>
+<p>$$\mathcal{L}_{\text{CE}} = -\sum_i y_i \log p_i^{S}$$</p>
+<p>这就是标准的交叉熵损失，和正常训练一样。</p>
+<h3 id="53-kl">5.3 软标签损失（KL 散度）</h3>
+<p>$$\mathcal{L}<em>{\text{KL}} = \text{KL}(p^T</em>{\text{teacher}} | p^T_{\text{student}}) = \sum_i p^T_{\text{teacher},i} \log \frac{p^T_{\text{teacher},i}}{p^T_{\text{student},i}}$$</p>
+<p>其中 (p^T) 表示使用温度 T 的 Softmax 输出。</p>
+<h3 id="54-t2">5.4 为什么要乘以 T²？</h3>
+<p>使用温度 T 的 Softmax 后，梯度会被缩小 (1/T^2) 倍（因为 logits 除以了 T，反向传播时梯度也除以 T，两次导数乘积为 (1/T^2)）。乘以 (T^2) 是为了<strong>补偿这个缩放</strong>，使硬标签损失和软标签损失的梯度量级一致。</p>
+<h3 id="55">5.5 α 的选择</h3>
+<ul>
+<li>(\alpha) 接近 1：更依赖硬标签（真实标签），蒸馏效果减弱</li>
+<li>(\alpha) 接近 0：更依赖软标签（教师分布），可能不稳定</li>
+<li>常用值：(\alpha = 0.1 \sim 0.5)</li>
+</ul>
+<hr />
+<h2 id="6-kl">6. KL 散度详解</h2>
+<h3 id="61-kl">6.1 什么是 KL 散度？</h3>
+<p>KL 散度（Kullback-Leibler Divergence）衡量两个概率分布之间的"距离"：</p>
+<p>$$\text{KL}(P | Q) = \sum_i P(i) \log \frac{P(i)}{Q(i)}$$</p>
+<p>直觉理解：如果用分布 Q 来编码来自分布 P 的信息，<strong>多消耗的比特数</strong>。</p>
+<h3 id="62-kl">6.2 KL 散度的性质</h3>
+<ol>
+<li><strong>非负性</strong>：(\text{KL}(P | Q) \geq 0)，当且仅当 P = Q 时等于 0</li>
+<li><strong>非对称性</strong>：(\text{KL}(P | Q) \neq \text{KL}(Q | P))</li>
+<li>不是真正的"距离"（不满足对称性和三角不等式）</li>
+</ol>
+<h3 id="63">6.3 在蒸馏中的角色</h3>
+<p>蒸馏中我们希望学生的分布 (p^T_S) 尽可能接近教师的分布 (p^T_T)：</p>
+<p>$$\min \text{KL}(p^T_T | p^T_S)$$</p>
+<p>当学生完美匹配教师时，KL 散度为 0。</p>
+<h3 id="64-kl-vs">6.4 KL 散度 vs 交叉熵</h3>
+<p>它们的关系：</p>
+<p>$$\text{KL}(P | Q) = H(P, Q) - H(P)$$</p>
+<p>其中 (H(P, Q)) 是交叉熵，(H(P)) 是 P 的自信息熵。由于 (H(P)) 是常数（教师分布固定），最小化 KL 散度等价于最小化交叉熵。</p>
+<hr />
+<h2 id="7">7. 代码实现</h2>
+<h3 id="71-pytorch">7.1 白盒蒸馏的 PyTorch 实现</h3>
+<pre class="highlight"><code class="language-python">import torch
+import torch.nn.functional as F
+
+def distillation_loss(student_logits, teacher_logits, labels, T=2.0, alpha=0.3):
+    &quot;&quot;&quot;
+    白盒知识蒸馏损失函数
+
+    Args:
+        student_logits: 学生模型输出 [batch, seq_len, vocab_size]
+        teacher_logits: 教师模型输出 [batch, seq_len, vocab_size]
+        labels: 真实标签 [batch, seq_len]
+        T: 温度
+        alpha: 硬标签权重
+    &quot;&quot;&quot;
+    # 1. 硬标签损失（标准交叉熵）
+    hard_loss = F.cross_entropy(
+        student_logits.view(-1, student_logits.size(-1)),
+        labels.view(-1),
+        ignore_index=-100
+    )
+
+    # 2. 软标签损失（KL 散度）
+    student_soft = F.log_softmax(student_logits / T, dim=-1)
+    teacher_soft = F.softmax(teacher_logits / T, dim=-1)
+    soft_loss = F.kl_div(
+        student_soft.view(-1, student_soft.size(-1)),
+        teacher_soft.view(-1, teacher_soft.size(-1)),
+        reduction='batchmean'
+    )
+
+    # 3. 总损失
+    loss = alpha * hard_loss + (1 - alpha) * T * T * soft_loss
+    return loss
+</code></pre>
+
+<h3 id="72">7.2 蒸馏训练循环</h3>
+<pre class="highlight"><code class="language-python"># 伪代码展示蒸馏训练流程
+teacher_model.eval()  # 教师模型固定，不训练
+
+for batch in dataloader:
+    input_ids, labels = batch
+
+    # 教师模型前向（不计算梯度）
+    with torch.no_grad():
+        teacher_logits = teacher_model(input_ids)
+
+    # 学生模型前向
+    student_logits = student_model(input_ids)
+
+    # 计算蒸馏损失
+    loss = distillation_loss(student_logits, teacher_logits, labels, T=2.0, alpha=0.3)
+
+    # 反向传播（只更新学生模型）
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+</code></pre>
+
+<hr />
+<h2 id="8-minimind">8. MiniMind 的蒸馏实现</h2>
+<h3 id="81">8.1 关键文件</h3>
+<ul>
+<li><code>trainer/train_distillation.py</code>：白盒蒸馏训练脚本</li>
+</ul>
+<h3 id="82-minimind">8.2 MiniMind 的双重蒸馏策略</h3>
+<p>MiniMind 同时使用了两种蒸馏：</p>
+<p><strong>1. 黑盒蒸馏（隐式）</strong><br />
+SFT 训练数据中的高质量回答来自 Qwen3、DeepSeek R1 等强模型。用这些数据做 SFT，本质上就是黑盒蒸馏。</p>
+<p><strong>2. 白盒蒸馏（显式）</strong><br />
+<code>train_distillation.py</code> 实现了完整的白盒蒸馏，使用教师模型的 logits 分布来指导学生模型训练。</p>
+<h3 id="83">8.3 蒸馏训练配置</h3>
+<p>MiniMind 蒸馏训练的典型配置：</p>
+<pre class="highlight"><code class="language-python"># 蒸馏超参数
+temperature = 2.0        # 温度
+alpha = 0.3              # 硬标签权重
+teacher_model = &quot;...&quot;    # 教师模型路径
+student_model = &quot;...&quot;    # 学生模型路径
+</code></pre>
+
+<h3 id="84">8.4 显存管理</h3>
+<p>白盒蒸馏需要同时加载教师和学生两个模型，显存压力更大。MiniMind 的处理方式：</p>
+<pre class="highlight"><code class="language-python"># 教师模型设为 eval 模式，不计算梯度
+teacher_model.eval()
+for param in teacher_model.parameters():
+    param.requires_grad = False
+
+# 教师模型可以用半精度节省显存
+teacher_model.half()
+</code></pre>
+
+<hr />
+<h2 id="9">9. 蒸馏的实际效果</h2>
+<h3 id="91">9.1 效果对比</h3>
+<p>一般来说，蒸馏后的学生模型表现：</p>
+<pre class="highlight"><code>教师模型（大） &gt; 蒸馏学生（小） &gt; 独立训练学生（小）
+</code></pre>
+
+<p>蒸馏不能让学生超越教师（受限于模型容量），但能显著缩小与教师的差距。</p>
+<h3 id="92">9.2 为什么蒸馏有效？</h3>
+<ol>
+<li><strong>软标签提供更丰富的监督信号</strong>：每个训练样本的信息量更大</li>
+<li><strong>暗知识传递</strong>：类别间的关系信息帮助学生更好地理解任务</li>
+<li><strong>正则化效果</strong>：软标签比硬标签更平滑，起到隐式正则化的作用</li>
+<li><strong>更高效的知识传输</strong>：教师已经从大量数据中提炼了知识，学生直接学习这些"精华"</li>
+</ol>
+<h3 id="93">9.3 蒸馏的局限性</h3>
+<ol>
+<li><strong>受限于教师质量</strong>：教师不好，学生也好不了</li>
+<li><strong>容量瓶颈</strong>：学生太小时，无法完全吸收教师的知识</li>
+<li><strong>计算开销</strong>：白盒蒸馏需要同时运行两个模型</li>
+<li><strong>数据依赖</strong>：仍需要足够的训练数据</li>
+</ol>
+<hr />
+<h2 id="_3">🎤 面试考点</h2>
+<h3 id="q1">Q1: 知识蒸馏的原理是什么？</h3>
+<p><strong>答</strong>：知识蒸馏通过一个大的教师模型来指导小的学生模型训练。核心思想是让学生模型不仅学习硬标签（正确答案），还学习教师模型的软标签（完整概率分布）。软标签包含丰富的"暗知识"——类别间的相似性关系，这些信息能帮助学生更好地学习。</p>
+<h3 id="q2-t">Q2: 温度 T 的作用是什么？</h3>
+<p><strong>答</strong>：温度 T 用于软化教师模型的输出分布。当 T=1 时，分布通常很"尖锐"，接近硬标签；提高 T 使分布更"平缓"，让不同类别间的概率差异更明显，"暗知识"得以显现。常用 T=2~5。同时，蒸馏损失要乘以 (T^2) 来补偿温度对梯度的缩放影响。</p>
+<h3 id="q3-vs">Q3: 黑盒蒸馏 vs 白盒蒸馏的区别？</h3>
+<p><strong>答</strong>：<br />
+- <strong>黑盒蒸馏</strong>：只使用教师模型的输出文本（硬标签），不需要访问模型内部。本质是用大模型生成数据来训练小模型。优点是实现简单，教师可以是 API；缺点是信息量有限。<br />
+- <strong>白盒蒸馏</strong>：使用教师模型的 logits 分布（软标签），需要访问模型内部。通过 KL 散度让学生匹配教师的分布。优点是信息量更丰富；缺点是需要同时运行两个模型。</p>
+<h3 id="q4-kl">Q4: KL 散度是什么？它在蒸馏中的作用？</h3>
+<p><strong>答</strong>：KL 散度衡量两个概率分布之间的"距离"：(\text{KL}(P|Q) = \sum_i P(i)\log\frac{P(i)}{Q(i)})。它具有非负性和非对称性。在蒸馏中，用 KL 散度来最小化学生分布和教师分布之间的差异，让学生模型学会匹配教师的"思考方式"。</p>
+<h3 id="q5-t2">Q5: 蒸馏损失为什么要乘以 T²？</h3>
+<p><strong>答</strong>：使用温度 T 后，logits 被除以 T，反向传播时梯度也被缩小了。具体地，softmax 的梯度与 (1/T) 成正比，KL 散度中有两次 softmax 操作的梯度，因此整体梯度被缩小了约 (1/T^2)。乘以 (T^2) 是为了补偿这个缩放，使软标签损失和硬标签损失的梯度量级一致。</p>
+<h3 id="q6">Q6: 蒸馏后的学生模型能超越教师吗？</h3>
+<p><strong>答</strong>：在同一任务上，蒸馏后的学生一般不会超越教师，因为受限于模型容量。但在某些特定场景下可能例外：(1) 教师模型过拟合了，学生通过蒸馏反而获得了更好的泛化；(2) 学生在特定子任务上通过蒸馏获得了更集中的能力。</p>
+<hr />
+<h2 id="_4">✅ 自测题</h2>
+<ol>
+<li>
+<p>手动计算：给定 logits [3.0, 1.0, 0.5]，分别计算 T=1 和 T=3 时的 Softmax 分布。</p>
+</li>
+<li>
+<p>写出白盒蒸馏的完整损失函数，解释每个符号的含义。</p>
+</li>
+<li>
+<p>为什么说软标签比硬标签包含更多信息？举一个具体的例子。</p>
+</li>
+<li>
+<p>MiniMind 如何同时使用黑盒蒸馏和白盒蒸馏？</p>
+</li>
+<li>
+<p>如果教师模型本身质量很差，蒸馏会有什么后果？</p>
+</li>
+</ol>
+<hr />
+<h2 id="_5">⏭️ 下一节预告</h2>
+<p><strong>L16 - 完整模型组装</strong>：我们已经学完了所有训练技术。最后一节，让我们回顾所有组件，像搭乐高一样把它们组装成完整的 MiniMind 模型，计算参数量，理解数据流动的全过程。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

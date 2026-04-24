@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L04 - MiniMind 项目导览 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="l04-minimind">L04 - MiniMind 项目导览</h1>
+<blockquote>
+<p><strong>"千里之行，始于配环境"</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">📌 本节目标</h2>
+<ol>
+<li>理解 MiniMind 项目的设计哲学和定位</li>
+<li>掌握项目的目录结构和每个关键文件的作用</li>
+<li>了解模型版本和核心配置参数</li>
+<li>完成环境搭建并运行第一次推理</li>
+<li>理解 MiniMind 的技术特色和面试价值</li>
+</ol>
+<hr />
+<h2 id="_2">📚 前置知识</h2>
+<ul>
+<li>阅读完 L01-L03，理解大语言模型基本原理、Transformer 架构和 PyTorch 基础</li>
+<li>能在终端中执行基本的 shell 命令（cd、ls、pip、python）</li>
+<li>有一台安装了 Python 3.9+ 的电脑（有 GPU 更好，没有也可以用 CPU 体验推理）</li>
+</ul>
+<hr />
+<h2 id="_3">正文讲解</h2>
+<h3 id="1-minimind">1. MiniMind 项目的目标和设计哲学</h3>
+<h4 id="11-minimind">1.1 为什么需要 MiniMind？</h4>
+<p>想象你想学修汽车引擎。你有两个选择：</p>
+<ul>
+<li><strong>选项 A</strong>：去法拉利工厂，面对一台 800 马力的 V12 发动机，上万个零件——看都看不懂</li>
+<li><strong>选项 B</strong>：去教学工坊，面对一台结构完整但大小只有 1/2700 的教学引擎——每个零件都能拆开看</li>
+</ul>
+<p>MiniMind 就是那台<strong>教学引擎</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>大模型（GPT-3/4）</th>
+<th>MiniMind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>参数 1750 亿+</td>
+<td>参数仅 6400 万</td>
+</tr>
+<tr>
+<td>需要上千张 A100 GPU</td>
+<td>一张消费级 GPU 即可</td>
+</tr>
+<tr>
+<td>训练花费上亿美元</td>
+<td>训练花费几块钱电费</td>
+</tr>
+<tr>
+<td>代码用各种优化框架封装</td>
+<td><strong>纯 PyTorch 原生实现</strong></td>
+</tr>
+<tr>
+<td>只能用，看不懂</td>
+<td><strong>每一行代码都能读懂</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="12">1.2 核心设计哲学</h4>
+<blockquote>
+<p><strong>"麻雀虽小，五脏俱全"</strong></p>
+</blockquote>
+<p>MiniMind 的设计目标不是"做一个好用的聊天机器人"，而是"用最小的代价，走完大模型训练的每一步"。因此它：</p>
+<ol>
+<li><strong>覆盖全链路</strong>：预训练 → SFT → DPO/RLHF → 推理评估，一步不少</li>
+<li><strong>不依赖黑箱</strong>：不用 HuggingFace Trainer、DeepSpeed 等高层封装，核心训练代码全部手写</li>
+<li><strong>代码极简</strong>：模型定义只有几百行，一个下午就能通读</li>
+<li><strong>结构标准</strong>：架构和 LLaMA 一脉相承，学会了 MiniMind 就理解了主流大模型的设计</li>
+</ol>
+<h3 id="2">2. 项目目录结构详解</h3>
+<p>下面是 MiniMind 的目录结构，以及每个文件夹/文件的作用：</p>
+<pre class="highlight"><code>minimind/
+├── model/                        # 🧠 模型结构代码
+│   ├── model_minimind.py         # ⭐ 核心：模型定义（MiniMindConfig、Attention、FFN、Block、CausalLM）
+│   ├── model_lora.py             # LoRA 微调相关的模型定义
+│   ├── tokenizer.json            # 分词器的词表和规则
+│   └── tokenizer_config.json     # 分词器配置
+│
+├── trainer/                      # 🏋️ 训练脚本
+│   ├── train_pretrain.py         # ⭐ 预训练脚本（从零训练语言模型）
+│   ├── train_full_sft.py         # 全参数 SFT（有监督微调）
+│   ├── train_lora.py             # LoRA 微调
+│   ├── train_dpo.py              # DPO 偏好对齐训练
+│   ├── train_distillation.py     # 知识蒸馏
+│   ├── train_ppo.py              # PPO 强化学习训练
+│   ├── train_grpo.py             # GRPO 训练
+│   ├── train_agent.py            # Agent 训练（工具调用）
+│   ├── train_tokenizer.py        # 训练自定义分词器
+│   ├── trainer_utils.py          # 训练公共工具函数
+│   └── rollout_engine.py         # PPO/GRPO 的 rollout 引擎
+│
+├── dataset/                      # 📊 数据集相关
+│   ├── lm_dataset.py             # ⭐ 数据集定义（预训练、SFT 等数据加载逻辑）
+│   ├── dataset.md                # 数据集说明文档
+│   └── __init__.py
+│
+├── scripts/                      # 🛠️ 工具脚本
+│   ├── web_demo.py               # Streamlit Web 对话界面
+│   ├── chat_api.py               # 简单的 API 服务
+│   ├── serve_openai_api.py       # OpenAI 兼容 API 服务
+│   ├── convert_model.py          # 模型格式转换（支持 GGUF 等）
+│   └── eval_toolcall.py          # 工具调用评估
+│
+├── eval_llm.py                   # 🎯 推理评估脚本（命令行对话）
+├── requirements.txt              # 📦 Python 依赖列表
+├── README.md                     # 📖 项目说明（中文）
+├── README_en.md                  # 📖 项目说明（英文）
+├── LICENSE                       # 📄 MIT 开源许可
+└── images/                       # 🖼️ README 中使用的图片
+</code></pre>
+
+<h4 id="_4">重点文件详解</h4>
+<h5 id="modelmodel_minimindpy"><code>model/model_minimind.py</code> — 项目之魂</h5>
+<p>这是整个项目最重要的文件，所有模型结构都在这里。它包含：</p>
+<table>
+<thead>
+<tr>
+<th>类名</th>
+<th>作用</th>
+<th>对应概念</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MiniMindConfig</code></td>
+<td>模型配置</td>
+<td>定义所有超参数（隐藏层大小、层数、头数等）</td>
+</tr>
+<tr>
+<td><code>RMSNorm</code></td>
+<td>归一化层</td>
+<td>L02 中讲的 Layer Normalization（简化版）</td>
+</tr>
+<tr>
+<td><code>Attention</code></td>
+<td>注意力机制</td>
+<td>L02 中讲的 Self-Attention + GQA + RoPE</td>
+</tr>
+<tr>
+<td><code>FeedForward</code></td>
+<td>前馈网络</td>
+<td>L02 中讲的 SwiGLU FFN</td>
+</tr>
+<tr>
+<td><code>MoEGate</code> / <code>MOEFeedForward</code></td>
+<td>专家混合</td>
+<td>MoE 版本的 FFN（高级话题）</td>
+</tr>
+<tr>
+<td><code>MiniMindBlock</code></td>
+<td>Transformer 块</td>
+<td>一层完整的 Transformer（Pre-Norm + Attention + FFN + 残差）</td>
+</tr>
+<tr>
+<td><code>MiniMindModel</code></td>
+<td>模型主体</td>
+<td>Embedding + N × Block + 最终 RMSNorm</td>
+</tr>
+<tr>
+<td><code>MiniMindForCausalLM</code></td>
+<td>因果语言模型</td>
+<td>MiniMindModel + lm_head + 损失计算 + 生成</td>
+</tr>
+</tbody>
+</table>
+<h5 id="trainertrain_pretrainpy"><code>trainer/train_pretrain.py</code> — 训练入口</h5>
+<p>预训练脚本包含：</p>
+<ul>
+<li>命令行参数解析（batch_size、learning_rate、epochs 等）</li>
+<li>模型和优化器初始化</li>
+<li>数据加载器构建</li>
+<li>训练循环（混合精度、梯度累积、梯度裁剪）</li>
+<li>模型保存和日志记录</li>
+<li>DDP 多卡分布式训练支持</li>
+</ul>
+<h5 id="eval_llmpy"><code>eval_llm.py</code> — 快速体验</h5>
+<p>推理脚本，加载训练好的模型权重，在命令行中与模型对话：</p>
+<pre class="highlight"><code class="language-python"># 核心流程
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = MiniMindForCausalLM.from_pretrained(model_path)
+# 自回归生成
+generated_ids = model.generate(
+    inputs=inputs[&quot;input_ids&quot;],
+    max_new_tokens=args.max_new_tokens,
+    do_sample=True,
+    top_p=args.top_p,
+    temperature=args.temperature,
+)
+</code></pre>
+
+<h3 id="3">3. 模型版本介绍</h3>
+<p>MiniMind 提供了多个模型版本，核心区别在于参数量和是否使用 MoE：</p>
+<table>
+<thead>
+<tr>
+<th>模型版本</th>
+<th>参数量</th>
+<th>架构特点</th>
+<th>适合场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>minimind-3</strong></td>
+<td>~64M</td>
+<td>标准 Dense 架构</td>
+<td>⭐ 学习入门首选</td>
+</tr>
+<tr>
+<td><strong>minimind-3-MoE</strong></td>
+<td>~198M</td>
+<td>Mixture of Experts</td>
+<td>学习 MoE 架构</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>MoE 是什么？</strong> Mixture of Experts（专家混合）是一种"条件计算"技术——模型有多个 FFN "专家"，但每次只激活其中一部分。这样参数总量大（198M），但实际每次计算量和 64M 差不多。MoE 是 GPT-4 等前沿大模型采用的技术。</p>
+</blockquote>
+<p>对于初学者，<strong>强烈建议从 minimind-3（64M）开始</strong>。它结构最简单，最容易理解。</p>
+<h3 id="4">4. 核心配置参数表</h3>
+<p>以下是 minimind-3 的默认配置（<code>MiniMindConfig</code> 类）：</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th>值</th>
+<th>含义</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hidden_size</code></td>
+<td>768</td>
+<td>隐藏层维度（d_model）</td>
+<td>每个词的"内部表示"有多丰富</td>
+</tr>
+<tr>
+<td><code>num_hidden_layers</code></td>
+<td>8</td>
+<td>Transformer 层数</td>
+<td>模型有多"深"，信息被处理多少遍</td>
+</tr>
+<tr>
+<td><code>num_attention_heads</code></td>
+<td>8</td>
+<td>Query 注意力头数</td>
+<td>从多少个角度理解句子</td>
+</tr>
+<tr>
+<td><code>num_key_value_heads</code></td>
+<td>4</td>
+<td>Key/Value 注意力头数（GQA）</td>
+<td>KV Cache 的共享程度</td>
+</tr>
+<tr>
+<td><code>head_dim</code></td>
+<td>96</td>
+<td>每个头的维度 (768/8)</td>
+<td>每个"角度"看到多少信息</td>
+</tr>
+<tr>
+<td><code>vocab_size</code></td>
+<td>6400</td>
+<td>词表大小</td>
+<td>模型认识多少个不同的 token</td>
+</tr>
+<tr>
+<td><code>intermediate_size</code></td>
+<td>~2048</td>
+<td>FFN 中间层维度</td>
+<td>FFN 的"思考空间"大小</td>
+</tr>
+<tr>
+<td><code>max_position_embeddings</code></td>
+<td>32768</td>
+<td>最大序列长度</td>
+<td>一次最多处理多少 token</td>
+</tr>
+<tr>
+<td><code>dropout</code></td>
+<td>0.0</td>
+<td>Dropout 概率</td>
+<td>训练时随机关闭神经元的比例</td>
+</tr>
+<tr>
+<td><code>use_moe</code></td>
+<td>False</td>
+<td>是否使用 MoE</td>
+<td>minimind-3 为 False</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_5">参数量怎么算？</h4>
+<p>大语言模型的参数主要分布在这几个部分：</p>
+<pre class="highlight"><code>1. Embedding 层
+   vocab_size × hidden_size = 6400 × 768 = 4,915,200 (≈5M)
+
+2. 每个 Transformer Block（共 8 个）:
+   - Q 投影: hidden_size × (num_attention_heads × head_dim) = 768 × 768 = 589,824
+   - K 投影: hidden_size × (num_key_value_heads × head_dim) = 768 × 384 = 294,912
+   - V 投影: 768 × 384 = 294,912
+   - O 投影: 768 × 768 = 589,824
+   - FFN gate: 768 × 2048 = 1,572,864
+   - FFN up:   768 × 2048 = 1,572,864
+   - FFN down: 2048 × 768 = 1,572,864
+   - RMSNorm × 2: 768 × 2 = 1,536
+
+   每层总计 ≈ 6.5M
+   8 层总计 ≈ 52M
+
+3. 最终 RMSNorm: 768
+4. lm_head: 与 Embedding 共享权重，不额外算
+
+总计 ≈ 5M + 52M + ... ≈ 64M
+</code></pre>
+
+<blockquote>
+<p><strong>面试技巧</strong>：能手算模型参数量是一个加分项，说明你真正理解了模型结构。</p>
+</blockquote>
+<h3 id="5">5. 环境搭建步骤</h3>
+<h4 id="1">第 1 步：克隆项目</h4>
+<pre class="highlight"><code class="language-bash">git clone https://github.com/jingyaogong/minimind.git
+cd minimind
+</code></pre>
+
+<h4 id="2_1">第 2 步：创建虚拟环境（推荐）</h4>
+<pre class="highlight"><code class="language-bash"># 使用 conda
+conda create -n minimind python=3.10
+conda activate minimind
+
+# 或者使用 venv
+python -m venv venv
+source venv/bin/activate
+</code></pre>
+
+<h4 id="3-pytorch">第 3 步：安装 PyTorch</h4>
+<p>PyTorch 需要根据你的 GPU 和 CUDA 版本单独安装。访问 <a href="https://pytorch.org/get-started/locally/">PyTorch 官网</a> 获取对应命令。</p>
+<pre class="highlight"><code class="language-bash"># 有 NVIDIA GPU (CUDA 12.x)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# 只有 CPU
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# macOS Apple Silicon
+pip install torch torchvision torchaudio
+</code></pre>
+
+<h4 id="4_1">第 4 步：安装项目依赖</h4>
+<pre class="highlight"><code class="language-bash">pip install -r requirements.txt
+</code></pre>
+
+<p><code>requirements.txt</code> 主要包含：</p>
+<table>
+<thead>
+<tr>
+<th>包名</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transformers</code></td>
+<td>HuggingFace 模型加载/保存框架</td>
+</tr>
+<tr>
+<td><code>datasets</code></td>
+<td>数据集加载工具</td>
+</tr>
+<tr>
+<td><code>trl</code></td>
+<td>用于 DPO/PPO 等训练</td>
+</tr>
+<tr>
+<td><code>swanlab</code></td>
+<td>训练日志可视化</td>
+</tr>
+<tr>
+<td><code>streamlit</code></td>
+<td>Web Demo 界面</td>
+</tr>
+</tbody>
+</table>
+<h4 id="5-gpu">第 5 步：检查 GPU</h4>
+<pre class="highlight"><code class="language-python">import torch
+print(f&quot;PyTorch 版本: {torch.__version__}&quot;)
+print(f&quot;CUDA 可用: {torch.cuda.is_available()}&quot;)
+if torch.cuda.is_available():
+    print(f&quot;GPU 型号: {torch.cuda.get_device_name(0)}&quot;)
+    print(f&quot;显存大小: {torch.cuda.get_device_properties(0).total_mem / 1024**3:.1f} GB&quot;)
+</code></pre>
+
+<p>即使没有 GPU，你也可以用 CPU 运行推理（只是慢一些），以及阅读和理解所有代码。</p>
+<h3 id="6">6. 快速体验：下载预训练模型并运行推理</h3>
+<p>MiniMind 提供了预训练好的模型权重，可以直接下载体验。</p>
+<h4 id="1-huggingface">方法 1：通过 HuggingFace 下载（推荐）</h4>
+<pre class="highlight"><code class="language-bash"># 安装 huggingface_hub（如果还没装的话）
+pip install huggingface_hub
+
+# 下载模型（会自动缓存到本地）
+python eval_llm.py
+</code></pre>
+
+<p><code>eval_llm.py</code> 默认会从 HuggingFace Hub 加载预训练模型权重。</p>
+<h4 id="2_2">方法 2：手动下载</h4>
+<p>从项目 README 中的链接下载模型文件，放到指定目录。</p>
+<h4 id="_6">运行推理</h4>
+<pre class="highlight"><code class="language-bash">python eval_llm.py
+</code></pre>
+
+<p>运行后你会看到一个交互式对话界面：</p>
+<pre class="highlight"><code>用户: 你好，请介绍一下你自己
+MiniMind: 我是 MiniMind，一个小型的语言模型...
+
+用户: 什么是人工智能？
+MiniMind: 人工智能是...
+</code></pre>
+
+<p>虽然 MiniMind 的回答质量远不如 GPT-4（毕竟只有 64M 参数），但你可以清楚地看到一个完整的语言模型是如何工作的。</p>
+<h4 id="web-demo">运行 Web Demo</h4>
+<pre class="highlight"><code class="language-bash">streamlit run scripts/web_demo.py
+</code></pre>
+
+<p>这会启动一个浏览器界面，提供更友好的对话体验。</p>
+<h3 id="7">7. 训练数据的获取方式</h3>
+<p>MiniMind 使用的训练数据以 JSONL 格式存储。</p>
+<h4 id="_7">预训练数据</h4>
+<p>预训练数据是纯文本（无标注），格式如下：</p>
+<pre class="highlight"><code class="language-jsonl">{&quot;text&quot;: &quot;北京是中华人民共和国的首都，位于华北平原的北部...&quot;}
+{&quot;text&quot;: &quot;深度学习是机器学习的一个分支，它使用多层神经网络...&quot;}
+</code></pre>
+
+<p>数据文件默认路径为 <code>dataset/pretrain_t2t_mini.jsonl</code>（相对于 trainer 目录）。</p>
+<h4 id="sft">SFT 数据</h4>
+<p>SFT（有监督微调）数据是对话格式：</p>
+<pre class="highlight"><code class="language-jsonl">{&quot;conversations&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;你好&quot;}, {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;你好！有什么可以帮助你的吗？&quot;}]}
+</code></pre>
+
+<p>数据加载逻辑在 <code>dataset/lm_dataset.py</code> 中实现。</p>
+<h3 id="8-minimind">8. MiniMind 的技术特色</h3>
+<h4 id="81-pytorch">8.1 纯 PyTorch 原生实现</h4>
+<p>这是 MiniMind <strong>最大的学习价值</strong>。</p>
+<p>很多开源项目虽然也提供了模型代码，但训练部分高度依赖 HuggingFace Trainer、DeepSpeed、Megatron 等高层框架。你看到的代码可能只有几行配置，真正的训练逻辑藏在框架内部。</p>
+<p>MiniMind 不同——它的训练循环是<strong>手写的</strong>：</p>
+<pre class="highlight"><code class="language-python"># MiniMind 的训练循环（trainer/train_pretrain.py）
+for step, (input_ids, labels) in enumerate(loader):
+    input_ids = input_ids.to(args.device)
+    labels = labels.to(args.device)
+
+    with autocast_ctx:
+        res = model(input_ids, labels=labels)
+        loss = res.loss + res.aux_loss
+        loss = loss / args.accumulation_steps
+
+    scaler.scale(loss).backward()
+
+    if step % args.accumulation_steps == 0:
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad()
+</code></pre>
+
+<p>每一行你都能看懂——这就是 MiniMind 的价值。</p>
+<h4 id="82-llama">8.2 与 LLaMA 架构一脉相承</h4>
+<p>MiniMind 的架构选择和 Meta 的 LLaMA 系列高度一致：</p>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>LLaMA</th>
+<th>MiniMind</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pre-RMSNorm</td>
+<td>✅</td>
+<td>✅</td>
+<td>先归一化再计算</td>
+</tr>
+<tr>
+<td>SwiGLU FFN</td>
+<td>✅</td>
+<td>✅</td>
+<td>门控激活函数</td>
+</tr>
+<tr>
+<td>RoPE 位置编码</td>
+<td>✅</td>
+<td>✅</td>
+<td>旋转位置编码</td>
+</tr>
+<tr>
+<td>GQA</td>
+<td>✅</td>
+<td>✅</td>
+<td>分组查询注意力</td>
+</tr>
+<tr>
+<td>Weight Tying</td>
+<td>✅</td>
+<td>✅</td>
+<td>Embedding 和 lm_head 共享权重</td>
+</tr>
+</tbody>
+</table>
+<p>学会了 MiniMind，你就理解了 LLaMA 的核心架构。</p>
+<h4 id="83">8.3 覆盖全训练链路</h4>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>脚本</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分词器训练</td>
+<td><code>train_tokenizer.py</code></td>
+<td>从零构建 BPE 分词器</td>
+</tr>
+<tr>
+<td>预训练 (PT)</td>
+<td><code>train_pretrain.py</code></td>
+<td>从零训练语言模型，学习语言知识</td>
+</tr>
+<tr>
+<td>全参 SFT</td>
+<td><code>train_full_sft.py</code></td>
+<td>用对话数据微调，学习对话格式</td>
+</tr>
+<tr>
+<td>LoRA 微调</td>
+<td><code>train_lora.py</code></td>
+<td>低秩适应，小参数量微调</td>
+</tr>
+<tr>
+<td>DPO 对齐</td>
+<td><code>train_dpo.py</code></td>
+<td>直接偏好优化，对齐人类偏好</td>
+</tr>
+<tr>
+<td>PPO/GRPO</td>
+<td><code>train_ppo.py</code> / <code>train_grpo.py</code></td>
+<td>强化学习方法对齐</td>
+</tr>
+<tr>
+<td>知识蒸馏</td>
+<td><code>train_distillation.py</code></td>
+<td>从大模型学习知识</td>
+</tr>
+<tr>
+<td>Agent 训练</td>
+<td><code>train_agent.py</code></td>
+<td>工具调用能力训练</td>
+</tr>
+</tbody>
+</table>
+<p>这就是一个完整的大模型训练流水线。在后续课程中，我们会逐一深入每个阶段。</p>
+<h3 id="9">9. 兼容主流框架</h3>
+<p>MiniMind 虽然代码简洁，但它兼容主流的模型推理和部署框架：</p>
+<table>
+<thead>
+<tr>
+<th>框架</th>
+<th>用途</th>
+<th>如何使用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>transformers</strong></td>
+<td>模型加载、推理</td>
+<td>直接用 <code>AutoModel.from_pretrained()</code></td>
+</tr>
+<tr>
+<td><strong>vLLM</strong></td>
+<td>高性能推理服务</td>
+<td>转换格式后加载</td>
+</tr>
+<tr>
+<td><strong>Ollama</strong></td>
+<td>本地模型运行</td>
+<td>通过 GGUF 格式导入</td>
+</tr>
+<tr>
+<td><strong>OpenAI API</strong></td>
+<td>API 服务</td>
+<td>运行 <code>serve_openai_api.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>这意味着你可以把 MiniMind 当作学习项目理解完架构后，轻松迁移到生产级框架。</p>
+<h3 id="10-minimind">10. 面试中如何介绍 MiniMind</h3>
+<p>当面试官问"你有没有做过大模型相关的项目"时，你可以这样回答：</p>
+<blockquote>
+<p>"我深入学习了 MiniMind 这个开源项目——这是一个仅 64M 参数的大语言模型，采用和 LLaMA 相同的 Decoder-Only 架构（Pre-RMSNorm、SwiGLU、RoPE、GQA）。我不仅阅读了全部源码，还亲手完成了从预训练到 SFT 到 DPO 的完整训练流程。</p>
+<p>选择 MiniMind 的原因是：它完全用 PyTorch 原生实现，没有依赖 HuggingFace Trainer 等高层封装，所以我能真正理解训练的每一步——数据加载、前向传播、损失计算、混合精度、梯度累积、分布式训练。</p>
+<p>通过这个项目，我掌握了 [具体你学到的技术点]..."</p>
+</blockquote>
+<p><strong>关键要点</strong>：</p>
+<ol>
+<li>强调"深入理解"而非"简单使用"</li>
+<li>具体说出技术细节（GQA、RoPE、SwiGLU 等）</li>
+<li>说明为什么选这个项目（小而完整、纯原生、学习友好）</li>
+<li>结合你实际做的实验和踩过的坑</li>
+</ol>
+<hr />
+<h2 id="minimind">📂 对应 MiniMind 源码</h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>对应文件</th>
+<th>关键代码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>项目配置</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class MiniMindConfig</code> — 所有超参数定义</td>
+</tr>
+<tr>
+<td>模型架构总览</td>
+<td><code>model/model_minimind.py</code></td>
+<td><code>class MiniMindForCausalLM</code> — 完整模型入口</td>
+</tr>
+<tr>
+<td>预训练脚本</td>
+<td><code>trainer/train_pretrain.py</code></td>
+<td>完整的预训练流程（数据加载、训练循环、保存）</td>
+</tr>
+<tr>
+<td>SFT 微调</td>
+<td><code>trainer/train_full_sft.py</code></td>
+<td>有监督微调的训练流程</td>
+</tr>
+<tr>
+<td>数据加载</td>
+<td><code>dataset/lm_dataset.py</code></td>
+<td><code>PretrainDataset</code>, <code>SFTDataset</code> 等数据集类</td>
+</tr>
+<tr>
+<td>推理评估</td>
+<td><code>eval_llm.py</code></td>
+<td>加载模型 + 自回归生成 + 交互式对话</td>
+</tr>
+<tr>
+<td>Web 界面</td>
+<td><code>scripts/web_demo.py</code></td>
+<td>Streamlit 对话界面</td>
+</tr>
+<tr>
+<td>API 服务</td>
+<td><code>scripts/serve_openai_api.py</code></td>
+<td>OpenAI 兼容的 API 接口</td>
+</tr>
+<tr>
+<td>模型转换</td>
+<td><code>scripts/convert_model.py</code></td>
+<td>将模型转换为 GGUF 等格式</td>
+</tr>
+<tr>
+<td>依赖管理</td>
+<td><code>requirements.txt</code></td>
+<td>所有 Python 依赖包</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_8">🎤 面试考点</h2>
+<h3 id="q1-minimind">Q1: 为什么选择 MiniMind 来学习大模型？它有什么优势？</h3>
+<p><strong>答</strong>：选择 MiniMind 有三个核心原因：<br />
+1. <strong>参数量小（64M）</strong>：一张消费级 GPU 就能完成全部训练流程，适合个人学习和实验。对比 GPT-3 的 175B，MiniMind 只有其 1/2700，但结构完整不缺任何核心组件。<br />
+2. <strong>纯 PyTorch 原生实现</strong>：不依赖 HuggingFace Trainer、DeepSpeed 等高层框架，训练循环完全手写。阅读代码能真正理解训练过程中的每一步（混合精度、梯度累积、分布式训练等），而不是只会调参数配置。<br />
+3. <strong>全链路覆盖</strong>：从分词器训练到预训练、SFT、LoRA、DPO、PPO、知识蒸馏、Agent 训练——大模型训练的每个阶段都有对应代码。同时架构与 LLaMA 高度一致，学会了可以迁移到主流大模型。</p>
+<h3 id="q2-minimind">Q2: MiniMind 的模型参数量是怎么计算出来的？</h3>
+<p><strong>答</strong>：以 minimind-3（hidden_size=768, num_hidden_layers=8, vocab_size=6400）为例：</p>
+<ol>
+<li><strong>Embedding 层</strong>：vocab_size × hidden_size = 6400 × 768 ≈ 5M（与 lm_head 共享，只算一次）</li>
+<li><strong>每个 Transformer Block</strong>：</li>
+<li>Q 投影：768 × 768 ≈ 0.6M</li>
+<li>K 投影：768 × 384（因为 GQA，kv_heads=4）≈ 0.3M</li>
+<li>V 投影：768 × 384 ≈ 0.3M</li>
+<li>O 投影：768 × 768 ≈ 0.6M</li>
+<li>FFN（gate + up + down）：768 × 2048 × 3 ≈ 4.7M</li>
+<li>RMSNorm：768 × 2 ≈ 0.002M</li>
+<li>小计：≈ 6.5M/层</li>
+<li><strong>8 层 Block</strong>：6.5M × 8 ≈ 52M</li>
+<li><strong>其他</strong>（最终 RMSNorm 等）：约 0.001M</li>
+<li><strong>总计</strong>：5M + 52M + ... ≈ <strong>64M</strong></li>
+</ol>
+<p>关键点：(1) GQA 让 K/V 投影的参数量减半；(2) 所有 Linear 层没有 bias，节省了参数；(3) lm_head 和 embedding 共享权重。</p>
+<h3 id="q3-minimind-llama">Q3: MiniMind 和 LLaMA 在架构上有哪些相同点和不同点？</h3>
+<p><strong>答</strong>：</p>
+<p><strong>相同点</strong>：<br />
+- 都是 Decoder-Only 架构<br />
+- 都使用 Pre-RMSNorm（先归一化再做计算）<br />
+- 都使用 SwiGLU 作为 FFN 的激活函数<br />
+- 都使用 RoPE（旋转位置编码）<br />
+- 都使用 GQA（分组查询注意力）<br />
+- 都使用 Weight Tying（Embedding 和 lm_head 共享权重）</p>
+<p><strong>不同点</strong>：<br />
+- 规模差异巨大：MiniMind 64M vs LLaMA-7B/13B/70B<br />
+- MiniMind 的 vocab_size 只有 6400（LLaMA 为 32000+）<br />
+- MiniMind 提供了 MoE 版本，LLaMA 2 没有（LLaMA 3 系列有 MoE 变体）<br />
+- MiniMind 训练代码完全自包含，不依赖分布式训练框架</p>
+<h3 id="q4-minimind">Q4: 大模型训练的完整流程是什么？MiniMind 覆盖了哪些？</h3>
+<p><strong>答</strong>：大模型训练的完整流程：</p>
+<ol>
+<li><strong>数据收集与清洗</strong> → MiniMind 提供了预处理好的数据集</li>
+<li><strong>分词器训练</strong> → <code>train_tokenizer.py</code>（BPE 分词器）</li>
+<li><strong>预训练（PT）</strong> → <code>train_pretrain.py</code>（学习语言知识，Next Token Prediction）</li>
+<li><strong>有监督微调（SFT）</strong> → <code>train_full_sft.py</code> / <code>train_lora.py</code>（学习对话格式）</li>
+<li><strong>对齐训练（RLHF/DPO）</strong> → <code>train_dpo.py</code> / <code>train_ppo.py</code>（对齐人类偏好）</li>
+<li><strong>评估与部署</strong> → <code>eval_llm.py</code> / <code>scripts/</code> 下的各种脚本</li>
+</ol>
+<p>MiniMind 覆盖了上述全部阶段，是目前少有的"全链路"开源教学项目。</p>
+<h3 id="q5-gpu">Q5: 如何快速估算一个模型需要多少 GPU 显存？</h3>
+<p><strong>答</strong>：粗略估算公式（用于训练）：</p>
+<ul>
+<li><strong>模型参数</strong>：每个 FP32 参数占 4 字节</li>
+<li><strong>梯度</strong>：与参数等大，占 4 字节</li>
+<li><strong>优化器状态</strong>：Adam/AdamW 为每个参数维护 2 个状态（一阶动量 + 二阶动量），各占 4 字节</li>
+<li><strong>激活值</strong>：取决于 batch size 和序列长度</li>
+</ul>
+<p>FP32 训练总显存 ≈ 参数量 × (4 + 4 + 8) = <strong>参数量 × 16 字节</strong></p>
+<p>MiniMind (64M)：64M × 16B ≈ 1GB（加上激活值等约 2-4GB，消费级 GPU 轻松搞定）<br />
+LLaMA-7B：7B × 16B ≈ 112GB（需要 2-4 张 A100 80GB）</p>
+<p>使用混合精度（BF16/FP16）可以减半参数和梯度的显存，使用 LoRA 可以大幅减少需要更新的参数量。</p>
+<hr />
+<h2 id="_9">✅ 自测题</h2>
+<h3 id="1_1">题目 1（选择题）</h3>
+<p>MiniMind 的核心模型定义代码在哪个文件中？</p>
+<p>A. <code>trainer/train_pretrain.py</code><br />
+B. <code>model/model_minimind.py</code><br />
+C. <code>eval_llm.py</code><br />
+D. <code>dataset/lm_dataset.py</code>  </p>
+<details>
+<summary>查看答案</summary>
+
+**B**。`model/model_minimind.py` 包含了所有模型结构定义：MiniMindConfig（配置类）、Attention、FeedForward、MiniMindBlock、MiniMindModel、MiniMindForCausalLM 等。
+
+</details>
+
+<h3 id="2_3">题目 2（选择题）</h3>
+<p>以下关于 MiniMind 的说法，<strong>不正确</strong>的是？</p>
+<p>A. MiniMind 使用纯 PyTorch 原生实现，不依赖 HuggingFace Trainer<br />
+B. MiniMind 的架构与 LLaMA 高度一致<br />
+C. MiniMind 只支持预训练，不支持 SFT 和 RLHF<br />
+D. MiniMind 支持 transformers、vLLM、Ollama 等主流框架  </p>
+<details>
+<summary>查看答案</summary>
+
+**C**。MiniMind 覆盖了完整的训练链路：预训练（train_pretrain.py）、SFT（train_full_sft.py / train_lora.py）、DPO（train_dpo.py）、PPO（train_ppo.py）、GRPO（train_grpo.py）、知识蒸馏（train_distillation.py）和 Agent 训练（train_agent.py）。
+
+</details>
+
+<h3 id="3_1">题目 3（简答题）</h3>
+<p>请列出 MiniMind minimind-3 模型的 5 个核心配置参数及其值，并解释每个参数的含义。</p>
+<details>
+<summary>查看答案</summary>
+
+| 参数 | 值 | 含义 |
+|------|-----|------|
+| `hidden_size` | 768 | 隐藏层维度（d_model），决定了每个 token 的向量表示维度 |
+| `num_hidden_layers` | 8 | Transformer Block 的层数，决定模型的深度 |
+| `num_attention_heads` | 8 | Q 的注意力头数，决定从多少个角度计算注意力 |
+| `num_key_value_heads` | 4 | K/V 的注意力头数（GQA），每 2 个 Q 头共享 1 组 KV |
+| `vocab_size` | 6400 | 词表大小，决定模型能识别多少种不同的 token |
+
+额外可提及：`intermediate_size`（约 2048，FFN 中间层维度）、`max_position_embeddings`（32768，最大序列长度）。
+
+</details>
+
+<hr />
+<h2 id="_10">🔮 下一节预告</h2>
+<p>Phase 1 的基础知识到此结束！你已经了解了大语言模型的原理、Transformer 的架构、PyTorch 的基本用法，以及 MiniMind 项目的全貌。</p>
+<p>在 Phase 2 中，我们将<strong>深入源码</strong>——从 MiniMind 的 Tokenizer 开始，逐个模块拆解模型代码，直到你能完全理解每一行代码的含义。</p>
+<p>👉 <strong>Phase 2 第一课：Tokenizer 分词器——如何把文字变成数字</strong></p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>02 - 模型架构面试题 - MiniMind 面试学习指南</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        nav {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        nav a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
+        nav a:hover { opacity: 0.85; }
+        nav .back { margin-right: 1rem; opacity: 0.8; }
+        h1 { font-size: 2rem; margin: 1.5rem 0 1rem; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; margin: 2rem 0 0.8rem; color: var(--text); border-left: 4px solid var(--primary); padding-left: 0.8rem; }
+        h3 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+        p { margin: 0.8rem 0; }
+        blockquote {
+            border-left: 4px solid var(--primary);
+            background: #eef2ff;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        code {
+            background: var(--code-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+        th { background: #eef2ff; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2rem 0; }
+        ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        li { margin: 0.3rem 0; }
+        strong { color: var(--primary); }
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="back" href="index.html">← 首页</a>
+        <a href="index.html">MiniMind 面试学习指南</a>
+    </nav>
+    <div class="container">
+        <h1 id="02-">02 - 模型架构面试题</h1>
+<blockquote>
+<p>共 28 道题，涵盖 Transformer 基础、注意力机制、位置编码、归一化、激活函数、FFN、残差连接、架构选择等核心知识点。</p>
+</blockquote>
+<hr />
+<h2 id="q1-transformer-encoder-decoder">Q1: Transformer 的整体架构是什么样的？Encoder 和 Decoder 分别做什么？</h2>
+<p><strong>详细版：</strong></p>
+<p>原始 Transformer（Vaswani et al., 2017）由 Encoder 和 Decoder 两部分组成。Encoder 由 N 个相同的层堆叠而成，每层包含一个多头自注意力（Multi-Head Self-Attention）和一个前馈网络（FFN），每个子层后接残差连接和 LayerNorm。Decoder 也由 N 层组成，除了自注意力和 FFN 之外，还多了一个交叉注意力（Cross-Attention）层，用于关注 Encoder 的输出。Decoder 的自注意力使用 Causal Mask 来确保位置 i 只能看到位置 ≤i 的信息，保证自回归生成的因果性。</p>
+<p>在 LLM 时代，GPT 系列采用了 Decoder-Only 架构，去掉了 Encoder 和 Cross-Attention，只保留了带 Causal Mask 的自注意力和 FFN。MiniMind 就是这种 Decoder-Only 架构。</p>
+<p><strong>精简版：</strong></p>
+<p>原始 Transformer 有 Encoder（双向注意力，适合理解任务）和 Decoder（因果注意力，适合生成任务）。LLM 普遍采用 Decoder-Only 架构，只保留 Causal Masked Self-Attention + FFN。MiniMind 是 Decoder-Only。</p>
+<hr />
+<h2 id="q2-self-attention">Q2: Self-Attention 的计算公式是什么？请推导整个过程。</h2>
+<p><strong>详细版：</strong></p>
+<p>给定输入 X ∈ R^{n×d}（n 为序列长度，d 为维度），Self-Attention 的计算过程如下：</p>
+<ol>
+<li><strong>线性投影</strong>：Q = XW_Q, K = XW_K, V = XW_V，其中 W_Q, W_K, W_V ∈ R^{d×d_k}</li>
+<li><strong>计算注意力分数</strong>：Score = QK^T / √d_k，得到 n×n 的矩阵</li>
+<li><strong>Softmax 归一化</strong>：Attn = softmax(Score)，每行归一化为概率分布</li>
+<li><strong>加权求和</strong>：Output = Attn · V</li>
+</ol>
+<p>完整公式：Attention(Q, K, V) = softmax(QK^T / √d_k) · V</p>
+<p>直觉理解：Q 是「查询」，K 是「键」，V 是「值」。通过 Q 和 K 的点积计算相关度，然后用相关度对 V 做加权求和，相当于从序列中动态地提取与当前位置最相关的信息。</p>
+<p><strong>精简版：</strong></p>
+<p>Attention(Q,K,V) = softmax(QK^T/√d_k)·V。Q/K/V 由输入经线性投影得到，QK^T 计算 token 间的相关度，除以 √d_k 防止梯度消失，softmax 归一化后对 V 加权求和。</p>
+<hr />
+<h2 id="q3-d_k">Q3: 为什么要除以 √d_k？</h2>
+<p><strong>详细版：</strong></p>
+<p>当 d_k 较大时，Q 和 K 的点积 QK^T 的值会随着维度增大而增大。假设 Q 和 K 的各分量是独立的均值为 0、方差为 1 的随机变量，那么 q·k = Σ(q_i · k_i) 的方差为 d_k。点积的量级约为 O(√d_k)，这会导致 softmax 的输入值过大，使得 softmax 函数进入梯度极小的饱和区（输出接近 one-hot），反向传播时梯度接近 0，训练困难。</p>
+<p>除以 √d_k 后，点积的方差被缩放回 1，softmax 的输入维持在合理范围，梯度能正常回传。这就是所谓的 <strong>Scaled Dot-Product Attention</strong>。</p>
+<p><strong>精简版：</strong></p>
+<p>d_k 越大，QK^T 的点积值方差越大（方差 = d_k），会把 softmax 推入饱和区导致梯度消失。除以 √d_k 使方差恢复到 1，保持 softmax 梯度稳定。</p>
+<hr />
+<h2 id="q4-multi-head-attention">Q4: 什么是多头注意力（Multi-Head Attention）？为什么需要多头？</h2>
+<p><strong>详细版：</strong></p>
+<p>多头注意力将 Q、K、V 分别拆成 h 个头，每个头独立计算注意力，最后拼接起来再过一个线性投影：</p>
+<p>MultiHead(Q,K,V) = Concat(head_1, ..., head_h) · W_O<br />
+其中 head_i = Attention(QW_Q^i, KW_K^i, VW_V^i)</p>
+<p>每个头的维度为 d_k = d_model / h。</p>
+<p><strong>为什么需要多头？</strong><br />
+1. <strong>捕获不同子空间的信息</strong>：不同的头可以关注不同类型的关系（如语法关系、语义关系、位置关系等）<br />
+2. <strong>增强表示能力</strong>：单头注意力在一个子空间中只能计算一种注意力模式，多头可以同时学习多种模式<br />
+3. <strong>计算效率</strong>：总计算量与单头相当（每个头的维度缩小了 h 倍），但表示能力更强</p>
+<p>MiniMind 使用 8 个注意力头，d_model=768，每个头的维度为 768/8=96。</p>
+<p><strong>精简版：</strong></p>
+<p>多头注意力将 Q/K/V 拆成 h 个头独立计算再拼接，每个头在不同子空间捕获不同的注意力模式。总计算量与单头相当，但表示能力更强。MiniMind 用 8 头，每头维度 96。</p>
+<hr />
+<h2 id="q5-gqa-mhamqa">Q5: 什么是 GQA？它与 MHA、MQA 有什么区别？</h2>
+<p><strong>详细版：</strong></p>
+<p>三种注意力变体的核心区别在于 KV 头的数量：</p>
+<table>
+<thead>
+<tr>
+<th>机制</th>
+<th>Q 头数</th>
+<th>KV 头数</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MHA</strong>（Multi-Head Attention）</td>
+<td>h</td>
+<td>h</td>
+<td>每个 Q 头配一对独立的 KV 头</td>
+</tr>
+<tr>
+<td><strong>MQA</strong>（Multi-Query Attention）</td>
+<td>h</td>
+<td>1</td>
+<td>所有 Q 头共享同一对 KV 头</td>
+</tr>
+<tr>
+<td><strong>GQA</strong>（Grouped Query Attention）</td>
+<td>h</td>
+<td>g（1&lt;g&lt;h）</td>
+<td>每组 h/g 个 Q 头共享一对 KV 头</td>
+</tr>
+</tbody>
+</table>
+<p>GQA 是 MHA 和 MQA 的折中方案：<br />
+- 相比 MHA：KV 缓存减少为原来的 g/h，推理时显存占用更低，速度更快<br />
+- 相比 MQA：保留了更多的 KV 容量，模型质量损失更小<br />
+- 当 g=h 时退化为 MHA，g=1 时退化为 MQA</p>
+<p>MiniMind 配置 q_heads=8, kv_heads=4，即每 2 个 Q 头共享 1 对 KV 头，KV 缓存减半。</p>
+<p>实现上，需要通过 <code>repeat_kv</code> 函数将 KV 头复制扩展到与 Q 头数量一致后再做注意力计算。</p>
+<p><strong>精简版：</strong></p>
+<p>GQA 是 MHA 和 MQA 的折中：MHA 每个 Q 头配独立 KV，MQA 所有 Q 头共享一套 KV，GQA 分组共享。MiniMind 用 8 个 Q 头、4 个 KV 头，KV 缓存减半，质量损失小。实现时用 repeat_kv 将 KV 复制到与 Q 头数对齐。</p>
+<hr />
+<h2 id="q6-rope">Q6: RoPE（旋转位置编码）的原理是什么？</h2>
+<p><strong>详细版：</strong></p>
+<p>RoPE 的核心思想是：将位置信息编码为旋转操作，使得两个 token 的注意力分数只取决于它们的相对位置。</p>
+<p>具体做法：将 d 维向量两两分组，每一组看作一个二维平面上的向量，对其施加一个与位置 m 相关的旋转角度 θ_i：</p>
+<p>f(x_m, m) 在第 i 组的效果是将 (x_{2i}, x_{2i+1}) 旋转角度 mθ_i</p>
+<p>其中 θ_i = 1 / (base^{2i/d})，base 即 rope_theta。</p>
+<p><strong>关键性质</strong>：旋转后的 Q_m 和 K_n 的点积 <f(q,m), f(k,n)> 只依赖于 (q, k, m-n)，即只依赖相对位置 m-n，满足相对位置编码的要求。</p>
+<p><strong>实现方式</strong>：利用复数乘法。将 (x_{2i}, x_{2i+1}) 视为复数 x_{2i} + ix_{2i+1}，乘以 e^{imθ_i} 即完成旋转。在实际代码中，等价于：</p>
+<pre class="highlight"><code>x_rot = x * cos(mθ) + rotate_half(x) * sin(mθ)
+</code></pre>
+
+<p>MiniMind 设置 rope_theta=1e6（而非默认的 10000），更大的 base 使高频分量衰减更慢，有利于长序列建模。</p>
+<p><strong>精简版：</strong></p>
+<p>RoPE 将位置编码为向量的旋转操作，使 QK 点积自然包含相对位置信息。将向量分量两两配对看作复数，乘以 e^{imθ} 完成旋转，θ_i = 1/base^{2i/d}。MiniMind 的 base=1e6，比默认 10000 更大，有利于长序列外推。</p>
+<hr />
+<h2 id="q7-rope-sinusoidal">Q7: RoPE 相比 Sinusoidal 位置编码有什么优势？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Sinusoidal PE</th>
+<th>RoPE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编码方式</td>
+<td>加在输入 Embedding 上</td>
+<td>乘在 Q/K 上（旋转）</td>
+</tr>
+<tr>
+<td>位置信息</td>
+<td>绝对位置</td>
+<td>自然编码相对位置</td>
+</tr>
+<tr>
+<td>外推能力</td>
+<td>差，超过训练长度急剧下降</td>
+<td>更好，且可通过 NTK/YaRN 增强</td>
+</tr>
+<tr>
+<td>是否可学习</td>
+<td>否（固定）/ 可改为可学习</td>
+<td>否（固定公式）</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>原始 Transformer</td>
+<td>现代 LLM（LLaMA/Qwen/MiniMind）</td>
+</tr>
+</tbody>
+</table>
+<p>RoPE 的核心优势：<br />
+1. <strong>相对位置编码</strong>：注意力分数直接反映相对距离<br />
+2. <strong>外推能力强</strong>：通过调整 base（NTK-aware）或 YaRN 方法可以将上下文外推到更长<br />
+3. <strong>与注意力耦合</strong>：直接作用在 Q/K 上，不占用模型容量</p>
+<p><strong>精简版：</strong></p>
+<p>Sinusoidal PE 加在输入上编码绝对位置；RoPE 旋转 Q/K 编码相对位置。RoPE 外推能力更强，可通过 YaRN 扩展上下文长度，是现代 LLM 的主流方案。</p>
+<hr />
+<h2 id="q8-rmsnorm-layernorm-minimind-rmsnorm">Q8: RMSNorm 和 LayerNorm 有什么区别？为什么 MiniMind 用 RMSNorm？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>LayerNorm</strong>：对每个样本的所有特征维度计算均值 μ 和方差 σ²，然后标准化：</p>
+<pre class="highlight"><code>LayerNorm(x) = γ · (x - μ) / √(σ² + ε) + β
+</code></pre>
+
+<p><strong>RMSNorm</strong>（Root Mean Square Normalization）：去掉了减均值（re-centering）操作，只做缩放（re-scaling）：</p>
+<pre class="highlight"><code>RMSNorm(x) = γ · x / √(mean(x²) + ε)
+</code></pre>
+
+<p>其中 RMS(x) = √(mean(x²))。</p>
+<p><strong>为什么用 RMSNorm？</strong><br />
+1. <strong>计算效率</strong>：省去了均值计算和减均值操作，减少约 10-15% 的计算量<br />
+2. <strong>效果相当</strong>：论文研究表明 re-centering 不是关键，re-scaling 才是核心<br />
+3. <strong>实践验证</strong>：LLaMA、Qwen 等主流模型都使用 RMSNorm，效果与 LayerNorm 相当<br />
+4. <strong>参数更少</strong>：没有偏置项 β</p>
+<p><strong>精简版：</strong></p>
+<p>LayerNorm = 减均值 + 除标准差 + 缩放偏移；RMSNorm 去掉减均值，只用 RMS 缩放。RMSNorm 计算更快（省约 10-15%），效果相当，LLaMA/Qwen/MiniMind 都在用。</p>
+<hr />
+<h2 id="q9-pre-norm-post-norm-llm-pre-norm">Q9: Pre-Norm 和 Post-Norm 有什么区别？为什么现代 LLM 偏好 Pre-Norm？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Post-Norm</strong>（原始 Transformer）：</p>
+<pre class="highlight"><code>x = x + Sublayer(LayerNorm(x))  ← 错误写法
+x = LayerNorm(x + Sublayer(x))  ← 正确：先子层，再残差，最后归一化
+</code></pre>
+
+<p><strong>Pre-Norm</strong>（现代 LLM）：</p>
+<pre class="highlight"><code>x = x + Sublayer(Norm(x))  ← 先归一化，再子层，最后残差
+</code></pre>
+
+<p><strong>Pre-Norm 的优势：</strong><br />
+1. <strong>训练更稳定</strong>：梯度通过残差连接直接回传，不会被 Norm 层阻碍<br />
+2. <strong>不依赖 warmup</strong>：Post-Norm 通常需要精心设计的 warmup 策略<br />
+3. <strong>可以训练更深的模型</strong>：梯度路径更平滑</p>
+<p><strong>Pre-Norm 的代价：</strong><br />
+- 有理论分析指出 Pre-Norm 可能在表示能力上略弱于 Post-Norm（因为残差连接未经归一化的特征直接累加），但在实践中差距很小</p>
+<p>MiniMind 使用 Pre-Norm + RMSNorm，每层的结构为：</p>
+<pre class="highlight"><code>x = x + Attention(RMSNorm(x))
+x = x + FFN(RMSNorm(x))
+</code></pre>
+
+<p><strong>精简版：</strong></p>
+<p>Post-Norm：子层输出加残差后再归一化；Pre-Norm：先归一化再进子层。Pre-Norm 训练更稳定、梯度回传更顺畅、可训练更深模型。MiniMind 用 Pre-Norm + RMSNorm。</p>
+<hr />
+<h2 id="q10-swiglu-relugelu">Q10: SwiGLU 激活函数是什么？为什么优于 ReLU/GELU？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>SwiGLU</strong> 是 Swish 激活函数与 GLU（Gated Linear Unit）的结合：</p>
+<pre class="highlight"><code>SwiGLU(x) = Swish(xW₁) ⊙ (xW₂)
+其中 Swish(x) = x · sigmoid(βx)，通常 β=1
+</code></pre>
+
+<p>相比传统 FFN 的 ReLU(xW₁)W₂，SwiGLU 的特点是：<br />
+1. <strong>门控机制</strong>：GLU 引入了一个门控分支（xW₂），让网络学会选择性地传递信息<br />
+2. <strong>平滑非线性</strong>：Swish 比 ReLU 平滑，没有「死神经元」问题<br />
+3. <strong>更强的表达能力</strong>：实验表明在相同参数量下 SwiGLU 优于 ReLU 和 GELU</p>
+<p><strong>注意</strong>：SwiGLU 的 FFN 有三个权重矩阵（W₁, W₂, W₃），而标准 FFN 只有两个。为了保持参数量一致，通常将中间维度从 4d 调整为 8d/3 ≈ 2.67d（再取到合适的整数）。</p>
+<p>MiniMind 的 FFN 结构：</p>
+<pre class="highlight"><code class="language-python">self.gate_proj = nn.Linear(d_model, hidden_dim)   # W₁ (gate)
+self.up_proj = nn.Linear(d_model, hidden_dim)      # W₂ (up)
+self.down_proj = nn.Linear(hidden_dim, d_model)    # W₃ (down)
+
+# forward:
+output = self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
+</code></pre>
+
+<p><strong>精简版：</strong></p>
+<p>SwiGLU(x) = Swish(xW₁) ⊙ (xW₂)，结合 Swish 的平滑非线性和 GLU 的门控机制。比 ReLU/GELU 表达能力更强，无死神经元问题。因为有三个权重矩阵，中间维度通常取 8d/3 保持参数量不变。</p>
+<hr />
+<h2 id="q11-ffn-expansion-ratio">Q11: FFN 的扩展比（expansion ratio）通常是多少？为什么？</h2>
+<p><strong>详细版：</strong></p>
+<p>在标准 Transformer 中，FFN 的中间维度 d_ff = 4 × d_model，扩展比为 4。</p>
+<p>使用 SwiGLU 后，因为多了一个门控投影矩阵，为了保持总参数量一致，中间维度调整为：</p>
+<pre class="highlight"><code>d_ff = 8/3 × d_model ≈ 2.67 × d_model
+</code></pre>
+
+<p>实践中通常向上取整到某个方便的数（如 64 或 256 的倍数）。</p>
+<p><strong>为什么需要扩展？</strong><br />
+- 注意力层负责 token 间的信息交互<br />
+- FFN 负责对每个 token 独立地做非线性变换，是模型知识存储的主要位置<br />
+- 扩展到更高维度再投影回来，相当于在更大的空间中做变换，增强表示能力</p>
+<p><strong>精简版：</strong></p>
+<p>标准 FFN 扩展比为 4（d_ff = 4d）。SwiGLU 因多一个门控矩阵，调整为 8d/3 ≈ 2.67d 以保持参数量。FFN 是知识存储的主要位置，高维空间变换增强表示能力。</p>
+<hr />
+<h2 id="q12-residual-connection">Q12: 残差连接（Residual Connection）的作用是什么？</h2>
+<p><strong>详细版：</strong></p>
+<p>残差连接的形式为 output = x + F(x)，即子层的输出加上原始输入。</p>
+<p><strong>作用：</strong><br />
+1. <strong>缓解梯度消失</strong>：反向传播时，梯度可以通过残差捷径（shortcut）直接回传，不需要经过所有子层，使深层网络可以训练<br />
+2. <strong>保证恒等映射</strong>：如果某层不需要做变换，F(x) 学成 0 即可，网络至少不会比浅层差<br />
+3. <strong>促进特征复用</strong>：底层特征可以直接传递到高层</p>
+<p><strong>在 Transformer 中</strong>：每个注意力子层和 FFN 子层都有残差连接：</p>
+<pre class="highlight"><code>x = x + Attention(Norm(x))
+x = x + FFN(Norm(x))
+</code></pre>
+
+<p><strong>精简版：</strong></p>
+<p>残差连接 y = x + F(x) 让梯度可以跳过子层直接回传，缓解梯度消失，保证深层网络至少不比浅层差。Transformer 每个子层（Attention/FFN）都有残差连接。</p>
+<hr />
+<h2 id="q13-decoder-only-encoder-decoder-llm-decoder-only">Q13: Decoder-Only 和 Encoder-Decoder 架构各适合什么任务？为什么 LLM 主流是 Decoder-Only？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>架构</th>
+<th>代表模型</th>
+<th>注意力方式</th>
+<th>适合任务</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Encoder-Only</td>
+<td>BERT</td>
+<td>双向注意力</td>
+<td>理解任务（分类、NER）</td>
+</tr>
+<tr>
+<td>Encoder-Decoder</td>
+<td>T5, BART</td>
+<td>编码双向 + 解码因果</td>
+<td>翻译、摘要等 seq2seq</td>
+</tr>
+<tr>
+<td>Decoder-Only</td>
+<td>GPT, LLaMA</td>
+<td>因果注意力</td>
+<td>文本生成、LLM</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Decoder-Only 成为 LLM 主流的原因：</strong><br />
+1. <strong>统一的生成范式</strong>：所有任务都可以转化为文本生成（prompt → completion）<br />
+2. <strong>更好的 few-shot/zero-shot 能力</strong>：因果语言模型天然适合 in-context learning<br />
+3. <strong>架构简洁</strong>：只有一种注意力机制，代码实现和推理优化更简单<br />
+4. <strong>KV-Cache 友好</strong>：因果注意力的 KV 可以缓存，加速自回归生成<br />
+5. <strong>scaling law 更优</strong>：有研究表明相同参数量下 Decoder-Only 的 scaling 效率更高</p>
+<p><strong>精简版：</strong></p>
+<p>Encoder-Decoder 适合 seq2seq 任务（翻译/摘要），Decoder-Only 适合生成任务。LLM 用 Decoder-Only 因为：统一生成范式、few-shot 能力强、架构简洁、KV-Cache 友好、scaling 更优。</p>
+<hr />
+<h2 id="q14-embedding-weight-tying">Q14: Embedding 层的作用是什么？什么是权重共享（Weight Tying）？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Embedding 层</strong>（embed_tokens）将离散的 token ID 映射为连续的向量表示。它本质上是一个查找表（lookup table），形状为 (vocab_size, d_model)。</p>
+<p><strong>LM Head 层</strong>（lm_head）将模型最后一层的隐状态投影回词表维度，输出每个 token 的 logits，形状也是 (d_model, vocab_size)。</p>
+<p><strong>权重共享（Weight Tying）</strong>：让 embed_tokens 和 lm_head 共享同一个权重矩阵。</p>
+<p><strong>好处：</strong><br />
+1. <strong>减少参数量</strong>：vocab_size × d_model 的参数只需要存一份。MiniMind 的词表 6400，d_model=768，共享节省了 6400×768 ≈ 4.9M 参数<br />
+2. <strong>语义一致性</strong>：输入和输出空间使用相同的表示，语义更一致<br />
+3. <strong>正则化效果</strong>：共享权重相当于隐式正则化，有助于防止过拟合<br />
+4. <strong>在小模型中效果显著</strong>：MiniMind 只有 64M 参数，节省的 4.9M 参数占比约 7.6%</p>
+<p><strong>精简版：</strong></p>
+<p>Embedding 将 token ID 映射为向量，lm_head 将隐状态映射回词表。权重共享让二者用同一个矩阵，节省参数（MiniMind 省约 4.9M/7.6%），并使输入输出语义一致。</p>
+<hr />
+<h2 id="q15-causal-mask">Q15: Causal Mask（因果掩码）的作用是什么？如何实现？</h2>
+<p><strong>详细版：</strong></p>
+<p>Causal Mask 确保在计算注意力时，位置 i 只能关注位置 ≤i 的 token（即只能看到过去和当前，不能看到未来）。</p>
+<p><strong>为什么需要？</strong><br />
+- 自回归生成时，token 按顺序逐个生成，生成位置 i 的 token 时不应看到位置 i+1 及之后的信息<br />
+- 训练时通过 teacher forcing 并行计算所有位置的 loss，Causal Mask 保证每个位置的预测只依赖于之前的上下文</p>
+<p><strong>实现方式</strong>：构造一个上三角全为 -inf 的 mask 矩阵，加到注意力分数上：</p>
+<pre class="highlight"><code class="language-python">mask = torch.triu(torch.ones(n, n), diagonal=1) * float('-inf')
+attn_scores = attn_scores + mask
+# softmax 后 -inf 对应的位置权重为 0
+</code></pre>
+
+<p>或者使用布尔 mask：</p>
+<pre class="highlight"><code class="language-python">mask = torch.tril(torch.ones(n, n)).bool()
+attn_scores.masked_fill_(~mask, float('-inf'))
+</code></pre>
+
+<p><strong>精简版：</strong></p>
+<p>Causal Mask 是一个下三角矩阵，让位置 i 只能注意到 ≤i 的 token。实现上是在 attention score 的上三角部分加 -inf，softmax 后权重为 0。保证训练和推理的因果一致性。</p>
+<hr />
+<h2 id="q16-minimind">Q16: MiniMind 的参数量是怎么计算的？</h2>
+<p><strong>详细版：</strong></p>
+<p>MiniMind 配置：d_model=768, n_layers=8, vocab_size=6400, q_heads=8, kv_heads=4, d_head=96, d_ff（SwiGLU 中间维度）</p>
+<p><strong>各部分参数量：</strong></p>
+<ol>
+<li>
+<p><strong>Embedding</strong>：vocab_size × d_model = 6400 × 768 = 4,915,200（约 4.9M）<br />
+（权重共享，lm_head 不额外计算）</p>
+</li>
+<li>
+<p><strong>每层 Attention</strong>：</p>
+</li>
+<li>W_Q: d_model × (q_heads × d_head) = 768 × 768 = 589,824</li>
+<li>W_K: d_model × (kv_heads × d_head) = 768 × 384 = 294,912</li>
+<li>W_V: d_model × (kv_heads × d_head) = 768 × 384 = 294,912</li>
+<li>W_O: d_model × d_model = 768 × 768 = 589,824</li>
+<li>
+<p>小计：≈ 1.77M</p>
+</li>
+<li>
+<p><strong>每层 FFN（SwiGLU）</strong>：</p>
+</li>
+<li>gate_proj: d_model × d_ff</li>
+<li>up_proj: d_model × d_ff</li>
+<li>down_proj: d_ff × d_model</li>
+<li>
+<p>小计：3 × d_model × d_ff</p>
+</li>
+<li>
+<p><strong>每层 Norm</strong>：2 × d_model（两个 RMSNorm，只有 γ 参数）</p>
+</li>
+<li>
+<p><strong>Final Norm</strong>：d_model = 768</p>
+</li>
+</ol>
+<p>总参数量 ≈ Embedding + 8 × (Attention + FFN + Norm) + Final Norm ≈ 64M</p>
+<p><strong>精简版：</strong></p>
+<p>参数分布：Embedding(6400×768≈4.9M) + 8层×(Attention≈1.77M + FFN + Norm) + Final Norm。Embedding 和 lm_head 共享。GQA 使 KV 投影只有 Q 的一半大小。总计约 64M。</p>
+<hr />
+<h2 id="q17-softmax">Q17: Softmax 的数值稳定性问题是什么？如何解决？</h2>
+<p><strong>详细版：</strong></p>
+<p>Softmax(x_i) = exp(x_i) / Σ exp(x_j)</p>
+<p>当 x_i 很大时，exp(x_i) 会溢出（overflow）；当 x_i 很小（负数很大）时，exp(x_i) 下溢为 0，分母可能为 0。</p>
+<p><strong>解决方法</strong>：减去最大值（safe softmax）：</p>
+<pre class="highlight"><code>Softmax(x_i) = exp(x_i - max(x)) / Σ exp(x_j - max(x))
+</code></pre>
+
+<p>数学上等价（分子分母同乘常数），但数值上稳定。PyTorch 的 <code>F.softmax</code> 内部已经实现了这个技巧。</p>
+<p>在 Attention 中，Causal Mask 用 -inf 而非一个很大的负数，因为 exp(-inf)=0 是精确的。但如果某行全是 -inf（比如 padding），softmax 输出会变成 NaN，需要特殊处理。</p>
+<p><strong>精简版：</strong></p>
+<p>exp(x) 在 x 很大时会溢出。解决方法：softmax 前减去 max(x)，数学等价但数值稳定。PyTorch 已内置此优化。Mask 用 -inf 而非大负数因为 exp(-inf) 精确为 0。</p>
+<hr />
+<h2 id="q18-transformer">Q18: Transformer 中为什么用点积注意力而不是加性注意力？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>加性注意力</strong>（Bahdanau Attention）：</p>
+<pre class="highlight"><code>score(q, k) = v^T · tanh(W_q · q + W_k · k)
+</code></pre>
+
+<p>需要额外的参数 v 和 W_q, W_k，且 tanh 运算较慢。</p>
+<p><strong>点积注意力</strong>（Dot-Product Attention）：</p>
+<pre class="highlight"><code>score(q, k) = q^T · k / √d_k
+</code></pre>
+
+<p>直接利用矩阵乘法计算，GPU 上非常高效。</p>
+<p>虽然加性注意力在小维度下可能效果更好（因为多了一层非线性），但在高维度下点积注意力的效率优势非常明显，且加上 scale 后效果不输加性注意力。</p>
+<p><strong>精简版：</strong></p>
+<p>点积注意力 q^T·k 直接用矩阵乘法完成，GPU 上极为高效；加性注意力需要额外参数和 tanh 非线性，效率低。高维度下缩放点积注意力效果不输加性注意力。</p>
+<hr />
+<h2 id="q19-kqv-minimind">Q19: 什么是 KQV 的维度关系？MiniMind 中是怎么配置的？</h2>
+<p><strong>详细版：</strong></p>
+<p>标准 MHA 中：<br />
+- d_model：模型隐藏维度<br />
+- n_heads：注意力头数<br />
+- d_head = d_model / n_heads：每个头的维度</p>
+<p>Q 的总维度 = n_heads × d_head = d_model<br />
+K 的总维度 = n_heads × d_head = d_model<br />
+V 的总维度 = n_heads × d_head = d_model</p>
+<p>在 GQA 中：<br />
+- Q 的总维度 = q_heads × d_head<br />
+- K 的总维度 = kv_heads × d_head<br />
+- V 的总维度 = kv_heads × d_head</p>
+<p><strong>MiniMind 配置</strong>：<br />
+- d_model = 768, q_heads = 8, kv_heads = 4, d_head = 768/8 = 96<br />
+- Q 维度：8 × 96 = 768<br />
+- K/V 维度：4 × 96 = 384<br />
+- W_Q 形状：(768, 768), W_K/W_V 形状：(768, 384)</p>
+<p><strong>精简版：</strong></p>
+<p>MiniMind：d_model=768, d_head=96。GQA 下 Q 是 8×96=768，K/V 是 4×96=384。W_Q 为 768×768，W_K/W_V 为 768×384。</p>
+<hr />
+<h2 id="q20">Q20: 模型的深度（层数）和宽度（隐藏维度）应该怎么权衡？</h2>
+<p><strong>详细版：</strong></p>
+<p>在固定参数量的前提下，增加深度意味着减少宽度，反之亦然。</p>
+<p><strong>深度优先的观点（MobileLLM 的发现）</strong>：<br />
+- MobileLLM 论文发现，在小模型（≤1B 参数）中，增加深度比增加宽度更有效<br />
+- 更深的模型能学到更复杂的层次化特征<br />
+- 建议：小模型应该「瘦长」而非「矮胖」</p>
+<p><strong>宽度的优势</strong>：<br />
+- 更大的隐藏维度意味着每层的表示能力更强<br />
+- 过深的模型可能遇到训练不稳定问题<br />
+- 宽模型推理时并行度更高，硬件利用率更好</p>
+<p><strong>MiniMind 的选择</strong>：d_model=768, n_layers=8，属于适中的配置。对于 64M 参数量级，这个 8 层的设计可能还可以尝试更深更窄的配置（如 12 层 × 更小的 d_model）。</p>
+<p><strong>精简版：</strong></p>
+<p>MobileLLM 发现小模型中深度比宽度重要（「瘦长」优于「矮胖」）。但过深可能训练不稳定，且宽模型硬件并行度更高。MiniMind 用 d_model=768, 8 层，是一个折中。</p>
+<hr />
+<h2 id="q21-attention-sink">Q21: 什么是 Attention Sink 现象？</h2>
+<p><strong>详细版：</strong></p>
+<p>Attention Sink 指的是 Transformer 模型倾向于给序列的第一个 token（通常是 BOS token 或第一个实际 token）分配异常高的注意力权重，即使这个 token 与当前位置的语义关系并不强。</p>
+<p><strong>原因</strong>：<br />
+- Causal Mask 导致所有位置都能看到第一个 token，它成了一个"全局可见的锚点"<br />
+- Softmax 的性质要求权重必须归一化到 1，当模型不需要关注任何特定 token 时，多余的注意力权重"倾倒"在第一个 token 上<br />
+- 第一个 token 的 KV 在所有位置的注意力计算中都参与，相当于一个隐式的"垃圾桶"</p>
+<p><strong>影响</strong>：<br />
+- 推理时如果使用 sliding window 丢弃了第一个 token，性能会急剧下降<br />
+- StreamingLLM 的解决方案：始终保留前几个 token 的 KV-Cache</p>
+<p><strong>精简版：</strong></p>
+<p>Attention Sink 是模型倾向于给第一个 token 分配过高注意力的现象。因为 Causal Mask 下它对所有位置可见，成为注意力的"垃圾桶"。StreamingLLM 的解决方案是始终保留前几个 token 的 KV-Cache。</p>
+<hr />
+<h2 id="q22-minimind-qwen3">Q22: MiniMind 对齐 Qwen3 是什么意思？具体对齐了哪些设计？</h2>
+<p><strong>详细版：</strong></p>
+<p>"对齐 Qwen3"指的是 MiniMind 的模型架构设计参考了 Qwen3 的技术方案，具体包括：</p>
+<ol>
+<li><strong>整体架构</strong>：Decoder-Only Transformer</li>
+<li><strong>注意力机制</strong>：GQA（Grouped Query Attention）</li>
+<li><strong>位置编码</strong>：RoPE，支持 YaRN 外推</li>
+<li><strong>归一化方案</strong>：Pre-Norm + RMSNorm</li>
+<li><strong>激活函数</strong>：SwiGLU</li>
+<li><strong>权重共享</strong>：embed_tokens 和 lm_head 共享权重</li>
+</ol>
+<p>MiniMind 的区别在于规模更小（64M vs Qwen3 的数十亿/数百亿参数），词表更小（6400 vs 通常 100k+），层数和维度也相应缩小。但核心架构设计完全一致。</p>
+<p><strong>面试价值</strong>：说「对齐 Qwen3」而不是「自己设计了个架构」，能体现你对主流工业级 LLM 架构的理解，以及务实的工程态度。</p>
+<p><strong>精简版：</strong></p>
+<p>对齐 Qwen3 指采用相同的架构设计：Decoder-Only + GQA + RoPE + Pre-Norm + RMSNorm + SwiGLU + 权重共享。MiniMind 是缩小版（64M 参数、6400 词表），核心设计一致。</p>
+<hr />
+<h2 id="q23-transformer">Q23: 为什么 Transformer 需要位置编码？不加会怎样？</h2>
+<p><strong>详细版：</strong></p>
+<p>Self-Attention 的计算是<strong>置换不变的</strong>（permutation invariant）：对输入序列中 token 的任意排列，如果不加位置编码，注意力权重和输出不会改变。这意味着模型无法区分「猫吃鱼」和「鱼吃猫」。</p>
+<p><strong>不加位置编码的后果</strong>：<br />
+- 模型无法理解词序，退化为"词袋模型"<br />
+- 在实际任务中，效果会严重下降</p>
+<p><strong>位置编码的演进</strong>：<br />
+1. 固定 Sinusoidal PE（原始 Transformer）<br />
+2. 可学习的绝对位置编码（GPT-2）<br />
+3. 相对位置编码（T5 的 relative bias）<br />
+4. 旋转位置编码 RoPE（LLaMA/Qwen/MiniMind）<br />
+5. ALiBi（BLOOM）</p>
+<p>MiniMind 使用 RoPE，将位置信息融入 Q/K 的旋转中。</p>
+<p><strong>精简版：</strong></p>
+<p>Self-Attention 是置换不变的，没有位置编码就无法区分词序（"猫吃鱼"="鱼吃猫"）。MiniMind 用 RoPE 将位置编码为 Q/K 的旋转操作。</p>
+<hr />
+<h2 id="q24-transformer">Q24: Transformer 的计算复杂度是多少？瓶颈在哪里？</h2>
+<p><strong>详细版：</strong></p>
+<p>设序列长度为 n，隐藏维度为 d：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>时间复杂度</th>
+<th>空间复杂度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Self-Attention (QK^T)</td>
+<td>O(n²d)</td>
+<td>O(n²)</td>
+</tr>
+<tr>
+<td>Self-Attention (·V)</td>
+<td>O(n²d)</td>
+<td>O(n²)</td>
+</tr>
+<tr>
+<td>FFN</td>
+<td>O(nd²) 或 O(nd·d_ff)</td>
+<td>O(d·d_ff)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>瓶颈分析</strong>：<br />
+- 当 n &lt; d 时（短序列），FFN 是瓶颈：O(nd²)<br />
+- 当 n &gt; d 时（长序列），Attention 是瓶颈：O(n²d)，且 n² 的注意力矩阵显存也会爆</p>
+<p><strong>优化方向</strong>：<br />
+- FlashAttention：减少 HBM 访问，不改变复杂度但减少实际运行时间<br />
+- 线性注意力（Linear Attention）：将 O(n²) 降为 O(n)<br />
+- 稀疏注意力：只计算部分 token 对的注意力<br />
+- MoE：保持 Attention 不变，FFN 只激活部分专家</p>
+<p><strong>精简版：</strong></p>
+<p>Attention 复杂度 O(n²d)，FFN 复杂度 O(nd²)。短序列 FFN 是瓶颈，长序列 Attention 是瓶颈。优化方向：FlashAttention 减少内存访问，线性注意力降低到 O(n)，MoE 减少 FFN 计算。</p>
+<hr />
+<h2 id="q25-logitslogits-token">Q25: 什么是 Logits？Logits 是怎么变成概率和最终生成 token 的？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Logits</strong> 是模型最后一层输出经过 lm_head 线性投影后得到的未归一化分数向量，维度为 vocab_size。每个值代表对应 token 的"置信度"。</p>
+<p><strong>从 Logits 到概率</strong>：</p>
+<pre class="highlight"><code>prob = softmax(logits / temperature)
+</code></pre>
+
+<p>temperature 控制分布的尖锐程度：T→0 趋近 greedy，T→∞ 趋近均匀分布。</p>
+<p><strong>从概率到 token</strong>（采样策略）：<br />
+1. <strong>Greedy</strong>：直接取 argmax(logits)<br />
+2. <strong>Top-K</strong>：只保留概率最高的 K 个 token，然后从中采样<br />
+3. <strong>Top-P（Nucleus Sampling）</strong>：保留累积概率达到 P 的最小 token 集合，然后采样<br />
+4. <strong>Temperature + Top-P</strong>：先调温度再 Top-P，综合控制</p>
+<p><strong>训练时</strong>：logits 直接送入 CrossEntropyLoss（内部包含 softmax），不需要手动转概率。</p>
+<p><strong>精简版：</strong></p>
+<p>Logits 是 lm_head 输出的未归一化分数（维度=vocab_size）。通过 softmax 转为概率，再用 greedy/top-k/top-p 采样得到最终 token。训练时直接用 CrossEntropyLoss（内含 softmax）。</p>
+<hr />
+<h2 id="q26-transformer-rnnlstm">Q26: 为什么 Transformer 比 RNN/LSTM 更适合做大语言模型？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>RNN/LSTM</th>
+<th>Transformer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>并行化</td>
+<td>无法并行（依赖前一步的隐状态）</td>
+<td>完全并行（注意力矩阵同时计算）</td>
+</tr>
+<tr>
+<td>长距离依赖</td>
+<td>信息传递需经过所有中间步骤，容易衰减</td>
+<td>任意两个位置直接连接，O(1) 路径长度</td>
+</tr>
+<tr>
+<td>训练速度</td>
+<td>慢（序列依赖）</td>
+<td>快（GPU 并行优化）</td>
+</tr>
+<tr>
+<td>缩放能力</td>
+<td>差（隐状态维度固定为瓶颈）</td>
+<td>好（Scaling Law，可通过增加参数提升性能）</td>
+</tr>
+<tr>
+<td>上下文长度</td>
+<td>理论无限但实际有限</td>
+<td>固定窗口但可通过外推技术扩展</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Transformer 替代 RNN 的根本原因</strong>：GPU 并行计算的效率。Transformer 把序列建模转化为大矩阵乘法，充分利用 GPU 的并行能力。</p>
+<p><strong>精简版：</strong></p>
+<p>Transformer 可完全并行训练（vs RNN 必须顺序计算）、长距离依赖 O(1) 路径（vs RNN 信息逐步衰减）、Scaling Law 缩放性好。根本原因是 GPU 对矩阵乘法的并行优化。</p>
+<hr />
+<h2 id="q27-layernorm-batchnorm-nlp-layernorm">Q27: LayerNorm 和 BatchNorm 有什么区别？为什么 NLP 用 LayerNorm？</h2>
+<p><strong>详细版：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>BatchNorm</th>
+<th>LayerNorm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>归一化维度</td>
+<td>对 batch 维度归一化（同一特征跨样本）</td>
+<td>对 feature 维度归一化（同一样本内所有特征）</td>
+</tr>
+<tr>
+<td>batch 依赖</td>
+<td>依赖 batch 统计量</td>
+<td>不依赖 batch</td>
+</tr>
+<tr>
+<td>推理时</td>
+<td>需要维护 running mean/var</td>
+<td>直接计算，无需额外统计</td>
+</tr>
+<tr>
+<td>变长序列</td>
+<td>不同样本长度不同，padding 导致统计不准</td>
+<td>每个 token 独立归一化，不受影响</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NLP 用 LayerNorm 的原因</strong>：<br />
+1. NLP 序列长度不固定，BatchNorm 的 batch 统计在变长序列上不可靠<br />
+2. 自回归生成时 batch_size 可能为 1，BatchNorm 无法工作<br />
+3. LayerNorm 对每个 token 独立归一化，不受 batch 和序列长度影响</p>
+<p><strong>精简版：</strong></p>
+<p>BatchNorm 跨 batch 归一化，依赖 batch 统计量；LayerNorm 在 feature 维度归一化，每个样本独立。NLP 用 LayerNorm 因为序列变长、batch 统计不可靠、推理时 batch=1 也能工作。</p>
+<hr />
+<h2 id="q28-perplexity-loss">Q28: 什么是 Perplexity（困惑度）？它和 Loss 什么关系？</h2>
+<p><strong>详细版：</strong></p>
+<p><strong>Perplexity (PPL)</strong> 是语言模型最常用的评估指标：</p>
+<pre class="highlight"><code>PPL = exp(H) = exp(-1/N × Σ log P(x_i | x_{&lt;i}))
+</code></pre>
+
+<p>其中 H 是交叉熵（Cross-Entropy Loss），N 是 token 数。</p>
+<p><strong>直觉理解</strong>：PPL 可以理解为模型在每个位置的"平均选择数"。PPL=10 意味着模型每一步平均要在 10 个等可能的 token 中选择。PPL 越低越好。</p>
+<p><strong>与 Loss 的关系</strong>：PPL = exp(Loss)<br />
+- Loss = 2.0 → PPL = e^2 ≈ 7.39<br />
+- Loss = 3.0 → PPL = e^3 ≈ 20.09</p>
+<p><strong>注意</strong>：PPL 只适用于同一数据集和同一词表的比较。不同词表大小、不同测试集的 PPL 不可直接比较。</p>
+<p><strong>精简版：</strong></p>
+<p>Perplexity = exp(CrossEntropyLoss)，表示模型每步的"平均选择数"，越低越好。PPL 只在相同数据集和词表下可比较。</p>
+    </div>
+    <div class="footer">
+        <p>MiniMind 面试学习指南 | 基于 <a href="https://github.com/jingyaogong/minimind" style="color:var(--primary)">MiniMind</a> 项目</p>
+    </div>
+</body>
+</html>
